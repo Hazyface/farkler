@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Farkler">
+<meta name="theme-color" content="#0a1210">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Farkler — Farkle Scorekeeper</title>
+<style>
+  :root{
+    --card:#1e2b26;
+    --card-2:#27352f;
+    --card-3:#31423b;
+    --line:rgba(255,255,255,.10);
+    --text:#eaf2ee;
+    --muted:#93a89e;
+    --gold:#ffcb47;
+    --gold-deep:#c98f00;
+    --green:#43d17f;
+    --green-deep:#1c8a4e;
+    --red:#ef4b4b;
+    --red-deep:#8f1f1f;
+    --blue:#4fb3e8;
+    --purple:#a98bff;
+    --drop:#0c1512;
+    --shadow:0 4px 0 var(--drop), 0 14px 30px rgba(0,0,0,.45);
+    /* rounded + geometric: SF Pro Rounded where it exists, Avenir Next everywhere else */
+    --font:ui-rounded,"SF Pro Rounded","Avenir Next","Segoe UI Variable",system-ui,-apple-system,sans-serif;
+    --display:"Futura","Avenir Next Condensed","Avenir Next",ui-rounded,system-ui,sans-serif;
+    /* rough and chalky — for the loud moments only */
+    --distress:"Chalkduster","Trattatello","Herculanum","Impact","Futura",system-ui,sans-serif;
+  }
+  /* touch-action:manipulation kills Safari's double-tap-to-zoom while leaving pinch-zoom and scrolling alone,
+     so hammering the same scoring button twice never zooms the page */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+  button,.sbtn,.act,.icobtn,.tag,.pill,.chip,.switch,.ord button,.ride,.seclab,.who,.pot,thead th{
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  }
+  input{-webkit-user-select:text;user-select:text}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--font);
+    color:var(--text);
+    background:radial-gradient(ellipse at 50% -12%, #21382e 0%, #142420 42%, #0a1210 100%);
+    background-attachment:fixed;
+    overflow:hidden;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.35;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.05) 1px,transparent 0);
+    background-size:5px 5px;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;color:inherit}
+  input{font-family:inherit}
+
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden}
+  .screen.on{display:flex}
+
+  /* ---------------- SETUP ---------------- */
+  #setup{overflow-y:auto;padding:22px 16px 40px;align-items:center}
+  .logo{text-align:center;margin:14px 0 4px}
+  .logo h1{
+    margin:0;font-family:var(--distress);font-weight:700;font-size:clamp(36px,10.5vw,74px);line-height:1.05;
+    letter-spacing:.02em;
+    background:linear-gradient(#ffe08a 8%, var(--gold) 45%, #d08b06 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 10px 22px rgba(255,203,71,.22));
+  }
+  .logo p{margin:10px 0 0;color:var(--muted);font-size:15px;letter-spacing:.14em;text-transform:uppercase}
+  .card{
+    width:100%;max-width:560px;background:var(--card);border-radius:22px;padding:18px;
+    box-shadow:var(--shadow);border:1px solid var(--line);margin-top:18px;
+  }
+  .card h2{margin:0 0 12px;font-size:22px;font-weight:600;letter-spacing:.01em}
+  .plist{display:flex;flex-direction:column;gap:10px}
+  .prow{display:flex;align-items:center;gap:10px}
+  .chip{width:44px;height:44px;border-radius:13px;flex:0 0 auto;display:grid;place-items:center;
+        font-size:23px;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.25);position:relative;transition:transform .08s}
+  .chip:active{transform:translateY(2px)}
+  .chip::after{content:"✎";position:absolute;right:-3px;bottom:-4px;font-size:11px;background:var(--card-3);color:var(--text);
+               width:17px;height:17px;border-radius:99px;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .prow input{
+    flex:1;min-width:0;font-size:19px;padding:11px 13px;border-radius:13px;border:2px solid var(--line);
+    background:#16211d;color:var(--text);
+  }
+  .prow input:focus{outline:none;border-color:var(--gold)}
+  .x{width:38px;height:38px;border-radius:12px;background:var(--card-2);font-size:17px;color:var(--muted);flex:0 0 auto}
+  .btn{
+    border-radius:16px;padding:14px 18px;font-size:19px;font-weight:600;color:#0e1a15;
+    background:var(--blue);box-shadow:0 4px 0 var(--drop);transition:transform .06s, box-shadow .06s;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--drop)}
+  .btn.wide{width:100%}
+  .btn.ghost{background:var(--card-2);color:var(--text);box-shadow:0 3px 0 var(--drop)}
+  .btn.go{background:linear-gradient(#ff6b5f,var(--red));color:#fff;font-family:var(--display);font-weight:700;
+          letter-spacing:.06em;font-size:26px;padding:18px;margin-top:16px}
+  .opt{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;font-size:16px}
+  .opt input[type=number]{width:110px;font-size:18px;padding:9px 11px;border-radius:12px;border:2px solid var(--line);
+                          background:#16211d;color:var(--text);text-align:center}
+  .switch{width:62px;height:34px;border-radius:99px;background:#3a4a44;position:relative;flex:0 0 auto;transition:background .15s}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:28px;height:28px;border-radius:99px;background:#e8f0ec;
+                 box-shadow:0 2px 4px rgba(0,0,0,.5);transition:left .15s}
+  .switch.on{background:var(--green-deep)}
+  .switch.on::after{left:31px;background:#fff}
+  .hint{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4}
+
+  /* reorder handles */
+  .ord{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+  .ord button{width:30px;height:20px;border-radius:7px;background:var(--card-2);color:var(--muted);font-size:11px;line-height:1;padding:0}
+  .ord button:disabled{opacity:.3}
+  .prow.moved{animation:nudge .25s ease}
+  @keyframes nudge{0%{transform:scale(1)}50%{transform:scale(1.03)}100%{transform:scale(1)}}
+
+  /* the bench — remembered players, kept small */
+  #benchWrap{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+  #benchWrap h3{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:500;letter-spacing:.06em;text-transform:uppercase}
+  .bench{display:flex;flex-wrap:wrap;gap:5px}
+  .pill{display:flex;align-items:center;gap:4px;background:var(--card-2);border-radius:99px;padding:2px 4px 2px 2px;
+        font-size:14px;color:var(--text);box-shadow:0 2px 0 var(--drop)}
+  .pill:active{transform:translateY(2px)}
+  .pill .pe{width:23px;height:23px;border-radius:99px;display:grid;place-items:center;font-size:13px;color:#fff}
+  .pill .pn{max-width:98px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill .pf{width:17px;height:17px;border-radius:99px;background:var(--card-3);font-size:9px;color:var(--muted);flex:0 0 auto;padding:0}
+
+  /* ---------------- GAME ---------------- */
+  .topbar{
+    display:flex;align-items:center;gap:8px;padding:10px 12px;
+    padding-top:calc(10px + env(safe-area-inset-top));
+    background:rgba(0,0,0,.3);flex:0 0 auto;border-bottom:1px solid var(--line);
+  }
+  /* the die shoves the name clear of the close button Safari parks in the corner in full screen */
+  .tb-title{font-family:var(--distress);font-weight:700;letter-spacing:.02em;font-size:19px;color:var(--gold);
+            flex:1;display:flex;align-items:center;gap:8px;padding-left:2px}
+  .tb-die{font-size:26px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+  .icobtn{width:40px;height:40px;border-radius:13px;background:var(--card-2);font-size:19px;color:var(--text);
+          display:grid;place-items:center;border:1px solid var(--line)}
+  .icobtn:active{transform:translateY(2px)}
+  .icobtn:disabled{opacity:.28}
+  @media (max-width:430px){
+    .topbar{gap:5px;padding-left:8px;padding-right:8px}
+    .icobtn{width:35px;height:35px;font-size:16px;border-radius:11px}
+    .tb-title{font-size:16px;letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  }
+
+  .gridwrap{flex:0 0 auto;max-height:34vh;overflow:auto;background:var(--card);
+            border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;font-size:18px}
+  thead th{position:sticky;top:0;z-index:2;background:#202d29;padding:7px 7px 11px;border:1px solid var(--line);
+           font-size:15px;line-height:1.15;cursor:pointer;color:var(--text);overflow:hidden}
+  /* a wash behind the card, plus a solid track along the bottom you can read across the table */
+  thead th .pfill{position:absolute;left:0;top:0;bottom:0;z-index:0;pointer-events:none;
+                  background:linear-gradient(90deg, rgba(67,209,127,.18), rgba(67,209,127,.42));
+                  transition:width .35s ease}
+  thead th .ptrack{position:absolute;left:0;right:0;bottom:0;height:7px;z-index:1;background:rgba(0,0,0,.5)}
+  thead th .pbar{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#2ea86a,var(--green));
+                 box-shadow:0 0 10px rgba(67,209,127,.7);transition:width .35s ease}
+  thead th .phead{position:relative;z-index:2;display:flex;align-items:center;gap:6px;text-align:left}
+  thead th .pinfo{flex:1;min-width:0}
+  /* big, but never wide enough to push the table into a sideways scroll */
+  thead th .pemoji{flex:0 0 auto;font-size:clamp(19px,5.4vw,32px);line-height:1;
+                   filter:drop-shadow(0 2px 3px rgba(0,0,0,.7))}
+  thead th .need{display:block;font-size:11px;font-weight:700;letter-spacing:.02em;color:#ff9d6e;
+                 text-shadow:0 1px 3px rgba(0,0,0,.8);margin-top:1px}
+  thead th .need.lead{color:var(--gold)}
+  thead th .nm{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+               text-shadow:0 1px 3px rgba(0,0,0,.85)}
+  thead th .tot{display:block;font-size:22px;font-weight:700;color:#fff;
+                text-shadow:0 1px 3px rgba(0,0,0,.9)}
+  thead th.act{background:#2c3a2f;box-shadow:inset 0 0 0 2px var(--gold)}
+  thead th.act .nm{color:var(--gold)}
+  thead th.act .pfill{background:linear-gradient(90deg, rgba(255,203,71,.2), rgba(255,203,71,.45))}
+  thead th.act .pbar{background:linear-gradient(90deg,#d99b0c,var(--gold));box-shadow:0 0 10px rgba(255,203,71,.8)}
+  td{padding:6px 5px;border:1px solid var(--line);text-align:center;min-width:64px;color:var(--text)}
+  td.turnno{background:#1a2521;color:var(--muted);font-size:14px;width:34px;min-width:34px}
+  td.live{background:rgba(255,203,71,.14);font-weight:700;color:var(--gold)}
+  td.farkle{color:var(--red);font-weight:700}
+  tr.thisrow td.turnno{background:var(--gold);color:#14211c;font-weight:700}
+
+  /* phone: squeeze the scoresheet so four players still fit without scrolling sideways.
+     Must come after the table rules above — same specificity, so source order decides. */
+  @media (max-width:430px){
+    thead th{padding:5px 3px 10px}
+    thead th .phead{gap:3px}
+    thead th .nm{font-size:13px}
+    thead th .tot{font-size:18px}
+    thead th .need{font-size:10px}
+    thead th .pemoji{font-size:clamp(17px,4.8vw,26px)}
+    td{min-width:50px;font-size:16px;padding:5px 3px}
+    td.turnno{width:24px;min-width:24px;font-size:12px}
+  }
+
+  .banner{flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(0,0,0,.24);color:var(--text)}
+  .who{flex:1;min-width:0}
+  .who .wname{font-size:clamp(19px,5.2vw,25px);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.15}
+  .who .wname b{color:var(--gold);font-weight:700}
+  .who .wsub{font-size:13px;color:var(--muted);line-height:1.25;margin-top:2px}
+  .who .wsub .chase{color:var(--gold)}
+  .who .wsub .dcount{color:#a9c7b8}
+  .pot{font-family:var(--display);font-weight:700;font-size:clamp(30px,9vw,46px);color:var(--gold);line-height:1;
+       text-shadow:0 0 26px rgba(255,203,71,.25)}
+  .pot small{font-family:var(--font);font-weight:500;font-size:11px;letter-spacing:.12em;color:var(--muted);
+             display:block;text-align:right;line-height:1;margin-top:3px}
+  .pot.pop{animation:pop .3s ease}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.28) rotate(-3deg)}100%{transform:scale(1)}}
+
+  /* nothing in this sheet but the two choices: fire or ice */
+  .ridesheet{padding:14px;display:flex;flex-direction:column;gap:12px}
+  .ridebtn{width:100%;border-radius:20px;padding:16px 14px;display:flex;flex-direction:row;
+           align-items:center;justify-content:center;gap:12px;box-shadow:0 6px 0 var(--drop);
+           transition:transform .06s, box-shadow .06s}
+  .rstack{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+  .bigmoji{flex:0 0 auto;font-size:clamp(46px,14vw,68px);line-height:1;transform-origin:center}
+  .bigmoji.fire{animation:flicker 1.1s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(255,140,40,.75))}
+  .bigmoji.ice{animation:shiver 2.4s ease-in-out infinite;filter:drop-shadow(0 0 14px rgba(140,215,255,.75))}
+  @keyframes flicker{
+    0%,100%{transform:scale(1) rotate(-4deg)}
+    35%{transform:scale(1.13) rotate(5deg)}
+    65%{transform:scale(.95) rotate(-2deg)}
+  }
+  @keyframes shiver{
+    0%,100%{transform:rotateY(0deg)}
+    50%{transform:rotateY(180deg)}
+  }
+  @media (prefers-reduced-motion:reduce){ .bigmoji{animation:none} }
+  .ridebtn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--drop)}
+  .ridebtn.take{background:linear-gradient(#ff9a3c,#bf1d18);color:#fff;border:2px solid rgba(255,190,120,.55);
+                text-shadow:0 2px 6px rgba(0,0,0,.45);box-shadow:0 6px 0 var(--drop), 0 0 40px rgba(255,90,30,.28)}
+  .ridebtn.fresh{background:linear-gradient(#7fd6ff,#2b7fc4);color:#04222f;border:2px solid rgba(190,235,255,.6);
+                 box-shadow:0 6px 0 var(--drop), 0 0 34px rgba(80,180,255,.22)}
+  .ridebtn .rlab{font-family:var(--display);font-weight:700;letter-spacing:.05em;font-size:clamp(19px,5.4vw,26px)}
+  .ridebtn .rbig{font-family:var(--display);font-weight:700;font-size:clamp(50px,17vw,82px);line-height:1}
+  .dicerow{display:flex;gap:3px;justify-content:center}
+  .dicerow .die{width:clamp(21px,6.4vw,30px);height:clamp(21px,6.4vw,30px)}
+  .riding{box-shadow:inset 0 0 0 3px var(--gold)}
+
+  /* the running tally for this turn: icon over score, wraps onto as many lines as it needs */
+  .tape{flex:0 0 auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:4px;padding:5px 10px;min-height:36px;
+        max-height:22vh;overflow-y:auto;background:rgba(0,0,0,.16);-webkit-overflow-scrolling:touch}
+  .tape:empty::after{content:"tap what you rolled 👇";color:var(--muted);font-size:13px;align-self:center}
+  .tag{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;
+       background:var(--card-2);color:var(--text);border:1px solid var(--line);border-radius:9px;
+       padding:2px 6px 3px;line-height:1.05;box-shadow:0 2px 0 var(--drop)}
+  .tag .tf{font-size:16px;letter-spacing:-1px}
+  .tag .tp{font-size:10px;font-weight:700;color:var(--green);margin-top:1px}
+  .tag .tp.neg{color:var(--red)}
+  .tag.rode{border-color:rgba(255,203,71,.55);background:#33301f}
+  .tdiv{flex:0 0 auto;width:3px;align-self:stretch;margin:1px 4px;border-radius:3px;
+        background:linear-gradient(transparent,var(--gold) 25%,var(--gold) 75%,transparent)}
+  /* all six came back — the roll starts over here */
+  .tdiv.hot{width:auto;background:none;display:flex;align-items:center;font-size:13px;margin:1px 2px;
+            padding:0 3px;border-left:3px dashed rgba(255,140,60,.85);border-right:3px dashed rgba(255,140,60,.85)}
+
+  /* ---- scoring pad: reflows to fill wide windows ---- */
+  .pad{flex:1 1 auto;overflow-y:auto;padding:10px 10px 14px;-webkit-overflow-scrolling:touch;min-height:0}
+  .padleft{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;min-height:0}
+  .padright{min-height:0}
+  .sbtn{
+    background:var(--card-2);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:10px 8px;
+    text-align:center;box-shadow:0 4px 0 var(--drop);transition:transform .06s, box-shadow .06s;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  }
+  .sbtn:active{transform:translateY(4px);box-shadow:0 0 0 var(--drop)}
+  .sbtn .face{font-size:24px;line-height:1}
+  .sbtn .lab{font-size:14px;line-height:1.15;font-weight:500}
+  .sbtn .pts{font-size:17px;color:var(--green);font-weight:700}
+  .sbtn .pts.neg,.sbtn.house .pts.neg{color:var(--red)}
+  .sbtn.huge{
+    padding:16px 10px;gap:6px;border:1px solid rgba(255,203,71,.5);
+    background:linear-gradient(#33443c,#22302a);
+    box-shadow:0 5px 0 var(--drop), inset 0 1px 0 rgba(255,255,255,.07), 0 0 32px rgba(255,203,71,.10);
+  }
+  .sbtn.huge{padding:10px 8px}
+  .sbtn.huge .face{font-size:clamp(64px,23vw,108px)}
+  .sbtn.huge .die{width:1.05em;height:1.05em;filter:drop-shadow(0 5px 8px rgba(0,0,0,.65))}
+  .sbtn.huge .pts{font-family:var(--display);font-weight:700;font-size:clamp(26px,8vw,38px);color:var(--gold)}
+  /* each section reads as its own family */
+  .gtri .sbtn{background:#16333a;border-color:rgba(78,205,196,.3)}
+  .gtri .sbtn .pts{color:#4ecdc4}
+  .gkind .sbtn{background:#3a2c1c;border-color:rgba(255,168,71,.32)}
+  .gkind .sbtn .pts{color:#ffa847}
+  .sbtn.spec{background:#2b2740;border-color:rgba(169,139,255,.28)}
+  .sbtn.spec .pts{color:var(--purple)}
+  .sbtn.cust{background:#1f3040;border-color:rgba(79,179,232,.3)}
+  .sbtn.cust .pts{color:var(--blue)}
+  .sbtn.house{background:#2a3a2e;border-color:rgba(67,209,127,.3)}
+  .sbtn.house .pts{color:var(--green)}
+  /* the dice carry these two sections, so give them room */
+  .gtri .sbtn,.gkind .sbtn{gap:4px;padding:8px 6px}
+  .gtri .sbtn .face,.gkind .sbtn .face{font-size:33px}
+  .sbtn.plus{font-family:var(--display);font-size:34px;font-weight:700;color:var(--blue);
+             padding:0;min-height:52px;line-height:1}
+  .seclab{color:var(--muted);font-size:11px;margin:2px 4px 6px;letter-spacing:.14em;text-transform:uppercase}
+  /* three across everywhere: triples fill 3×2, more-of-a-kind 3×1, specials 3×2 and on to 3×3 as rules are added */
+  .gtri,.gkind,.gspec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+
+  /* dice art */
+  .die{width:1.15em;height:1.15em;display:block;flex:0 0 auto;
+       filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
+  .face{display:flex;align-items:center;justify-content:center;gap:.18em}
+  .face .mult{font-family:var(--display);font-weight:700;font-size:.95em;color:var(--text);letter-spacing:-.01em}
+  .face .emo{line-height:1}
+
+  @media (min-width:740px){
+    /* wide window: singles stand tall on the left, everything else packs beside them — no scrolling */
+    .pad{display:grid;grid-template-columns:minmax(210px,28%) 1fr;grid-template-rows:minmax(0,1fr);
+         gap:14px;overflow:hidden;padding:12px}
+    .padleft{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);margin-bottom:0;height:100%}
+    .padleft .sbtn.huge{height:100%;overflow:hidden;padding:10px}
+    /* rows never shrink below their content, but they share any leftover height so the three
+       sections stretch down to meet the bottom of the tall 1 and 5 buttons */
+    .padright{display:grid;overflow-y:auto;
+              grid-template-rows:auto minmax(min-content,1fr) auto minmax(min-content,1fr) auto minmax(min-content,1fr)}
+    .padright .sbtn{overflow:hidden}
+    .gspec{margin-bottom:0}
+    /* size to the shorter of width and height so a squat window never clips them */
+    .sbtn.huge .face{font-size:min(11vw,20vh,150px)}
+    .sbtn.huge .lab{font-size:min(2.2vw,3.6vh,26px)}
+    .sbtn.huge .pts{font-size:min(2.6vw,4.4vh,34px)}
+    .gridwrap{max-height:21vh}
+    .actions{max-width:1100px;margin:0 auto;width:100%}
+    .seclab{margin:0 4px 2px;font-size:12px}
+    .padright .sbtn{padding:5px 6px}
+    .padright .sbtn .face{font-size:21px}
+    .padright .gtri .sbtn .face,.padright .gkind .sbtn .face{font-size:27px}
+    .padright .sbtn .lab{font-size:14px}
+    .padright .sbtn .pts{font-size:16px}
+    .gtri,.gkind,.gspec{gap:6px}
+    .gtri,.gkind{margin-bottom:3px}
+    .tape{min-height:36px;padding:6px 12px}
+  }
+  /* wide but short (laptops, landscape tablets): claw back the chrome so nothing scrolls */
+  @media (min-width:740px) and (max-height:820px){
+    .gridwrap{max-height:19vh}
+    .topbar{padding:6px 12px;padding-top:calc(6px + env(safe-area-inset-top))}
+    .icobtn{width:36px;height:36px;font-size:17px}
+    .tb-title{font-size:19px}
+    .banner{padding:6px 14px}
+    .tape{min-height:32px;padding:4px 12px;max-height:15vh}
+    .pad{padding:8px 12px;gap:10px}
+    .actions{padding:8px 12px}
+    .act{padding:11px 10px;font-size:22px}
+    .padright .sbtn{padding:5px 6px}
+    .padright .sbtn .face{font-size:17px}
+    .padright .gtri .sbtn .face,.padright .gkind .sbtn .face{font-size:26px}
+    .padright .sbtn .lab{font-size:13px}
+    .padright .sbtn .pts{font-size:15px}
+    .padleft .sbtn.huge{padding:6px}
+    .sbtn.huge .face{font-size:min(9vw,12vh,130px)}
+    .sbtn.huge .lab{font-size:min(2.2vw,2.8vh,24px)}
+    .sbtn.huge .pts{font-size:min(2.6vw,3.3vh,30px)}
+    .seclab{font-size:12px;margin:0 4px 2px}
+  }
+
+  .actions{flex:0 0 auto;display:grid;grid-template-columns:1fr 1.15fr;gap:10px;padding:10px 12px;
+           padding-bottom:calc(10px + env(safe-area-inset-bottom));background:rgba(0,0,0,.34);
+           border-top:1px solid var(--line)}
+  .act{border-radius:16px;padding:16px 10px;font-family:var(--display);letter-spacing:.05em;
+       font-size:clamp(19px,5.2vw,25px);font-weight:700;color:#fff;
+       box-shadow:0 5px 0 var(--drop);transition:transform .06s,box-shadow .06s}
+  .act:active{transform:translateY(4px);box-shadow:0 1px 0 var(--drop)}
+  .act.farkle{background:linear-gradient(#ff6257,#a32320);font-family:var(--distress);letter-spacing:0;
+              font-size:clamp(17px,4.6vw,22px)}
+  .act.bank{background:linear-gradient(#4ee08d,#159154);color:#082214}
+  .act.bank small{display:block;font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:0;opacity:.75}
+  /* game over: the scoresheet takes the whole page and the pad gets out of the way */
+  .endactions{display:none}
+  .over .pad,.over .tape,.over .banner,.over .actions{display:none}
+  .over .endactions{display:grid}
+  .over .gridwrap{flex:1 1 auto;max-height:none}
+  .act.again{background:linear-gradient(#4ee08d,#159154);color:#082214}
+  .act.newcrew{background:linear-gradient(#7fc7ff,#2b6fc4);color:#04222f}
+  .shake{animation:shake .4s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+
+  #toast{position:fixed;left:50%;top:46%;transform:translate(-50%,-50%) scale(.6);opacity:0;pointer-events:none;
+         font-family:var(--distress);font-weight:700;letter-spacing:.01em;
+         font-size:clamp(27px,8.4vw,58px);color:#fff;z-index:50;text-align:center;width:92%;line-height:1.15;
+         text-shadow:0 4px 18px rgba(0,0,0,.8), 0 0 40px rgba(0,0,0,.6)}
+  #toast.show{animation:toast 1.2s ease forwards}
+  @keyframes toast{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.5) rotate(-12deg)}
+    18%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(3deg)}
+    30%{transform:translate(-50%,-50%) scale(1) rotate(-2deg)}
+    72%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-2deg)}
+    100%{opacity:0;transform:translate(-50%,-60%) scale(.95)}
+  }
+
+  .ovl{position:fixed;inset:0;background:rgba(4,8,7,.82);display:none;align-items:center;justify-content:center;
+       padding:18px;z-index:60;overflow-y:auto;backdrop-filter:blur(3px)}
+  .ovl.on{display:flex}
+  .sheet{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:24px;padding:20px;
+         max-width:460px;width:100%;box-shadow:var(--shadow);text-align:center}
+  .sheet h2{margin:0 0 6px;font-family:var(--display);font-weight:700;letter-spacing:.04em;font-size:27px}
+  .sheet .crown{font-size:60px;margin-bottom:4px}
+  .standings{text-align:left;margin:14px 0}
+  .stand{display:flex;justify-content:space-between;padding:9px 12px;border-radius:12px;font-size:18px;margin-bottom:6px;
+         background:var(--card-2)}
+  .stand.first{background:linear-gradient(#ffd873,var(--gold));color:#14211c;font-weight:700}
+  .rules{text-align:left;font-size:15px;line-height:1.55;max-height:56vh;overflow-y:auto;color:#d3e0da}
+  .rules h3{margin:14px 0 4px;font-size:17px;color:var(--green)}
+  .rules ul{margin:4px 0;padding-left:20px}
+  .egrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(48px,1fr));gap:6px;max-height:52vh;overflow-y:auto;margin:10px 0}
+  .egrid button{font-size:26px;padding:6px 0;border-radius:12px;background:var(--card-2);line-height:1.1}
+  .egrid button:active{transform:scale(.9)}
+
+  /* house rule editor */
+  .field{display:flex;flex-direction:column;gap:5px;text-align:left;margin-top:12px}
+  .field label{font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  .field input{font-size:19px;padding:11px 13px;border-radius:13px;border:2px solid var(--line);
+               background:#16211d;color:var(--text);width:100%}
+  .field input:focus{outline:none;border-color:var(--gold)}
+  .rulelist{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px;text-align:left}
+  .rulerow{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:7px 9px;margin-bottom:6px}
+  .rulerow .rn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
+  .rulerow .rp{color:var(--green);font-weight:700}
+  .rulerow .rd{width:28px;height:28px;border-radius:9px;background:var(--card-3);color:var(--muted);font-size:12px;flex:0 0 auto}
+
+  /* where am I actually running? — answers the "blank screen on the iPad" question */
+  .diag{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px;text-align:left;
+        font-size:12px;line-height:1.5;color:var(--muted);word-break:break-all}
+  .diag b{color:var(--text);font-weight:600}
+  .diag .ok{color:var(--green)}
+  .diag .warn{color:#ff9d6e}
+  .confetti{position:fixed;top:-20px;font-size:22px;z-index:59;pointer-events:none;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+</style>
+</head>
+<body>
+
+<!-- ============ SETUP ============ -->
+<div id="setup" class="screen on">
+  <div class="logo">
+    <h1>FARKLER</h1>
+    <p>🎲 the dice game scorekeeper 🎲</p>
+  </div>
+
+  <div class="card">
+    <h2>Who's playing?</h2>
+    <div class="plist" id="plist"></div>
+    <button class="btn ghost wide" id="addPlayer" style="margin-top:12px">➕ Add player</button>
+
+    <div id="benchWrap" style="display:none">
+      <h3>🪑 On the bench — tap to add back</h3>
+      <div class="bench" id="bench"></div>
+    </div>
+
+    <div class="opt">
+      <label for="target">🏁 Play to</label>
+      <input type="number" id="target" value="10000" step="500" min="500">
+    </div>
+    <div class="opt">
+      <label for="onboard">🚪 Need 500 to get on the board</label>
+      <div class="switch on" id="onboard" role="switch" aria-checked="true" tabindex="0"></div>
+    </div>
+    <div class="opt">
+      <label for="letride">🎠 Let it ride (roll with greed)</label>
+      <div class="switch on" id="letride" role="switch" aria-checked="true" tabindex="0"></div>
+    </div>
+    <div class="hint">Once someone passes the target, everybody else gets one last turn to beat them — and if
+      somebody takes the lead, the lap starts over against them. Tap a player's icon to change it, or the arrows
+      to change the turn order.</div>
+
+    <button class="btn go wide" id="start">LET'S ROLL! 🎲</button>
+  </div>
+
+  <div class="card">
+    <h2>How scoring works here</h2>
+    <div class="hint" style="font-size:15px">
+      Tap a button for each scoring combo you rolled — they stack up in your pot.
+      <b>Bank it</b> to keep the points, or hit <b>FARKLE</b> when you roll nothing and lose the pot.
+      Farkle rules vary by kitchen table, so you can name your own <b>house rules</b> and they stick around as buttons.
+    </div>
+  </div>
+</div>
+
+<!-- ============ GAME ============ -->
+<div id="game" class="screen">
+  <div class="topbar">
+    <div class="tb-title"><span class="tb-die">🎲</span>FARKLER</div>
+    <button class="icobtn" id="fsBtn" title="Full screen" style="display:none">⛶</button>
+    <button class="icobtn" id="soundBtn" title="Sound">🔊</button>
+    <button class="icobtn" id="rulesBtn" title="Scoring reference">❓</button>
+    <button class="icobtn" id="undoBtn" title="Undo">↩️</button>
+    <button class="icobtn" id="redoBtn" title="Redo">↪️</button>
+    <button class="icobtn" id="menuBtn" title="Menu">🏠</button>
+  </div>
+
+  <div class="gridwrap"><table id="grid"></table></div>
+
+  <div class="banner">
+    <div class="who" id="who"></div>
+    <div class="pot" id="pot">0<small>IN THE POT</small></div>
+  </div>
+
+  <div class="tape" id="tape"></div>
+
+  <div class="pad" id="pad"></div>
+
+  <div class="actions">
+    <button class="act farkle" id="farkleBtn">FARKLE! 💀</button>
+    <button class="act bank" id="bankBtn">BANK IT 🏦<small id="bankSub"></small></button>
+  </div>
+
+  <!-- replaces the scoring controls once somebody has won -->
+  <div class="actions endactions" id="endActions">
+    <button class="act again" id="againSame">🎲 SAME PLAYERS</button>
+    <button class="act newcrew" id="againNew">👥 NEW PLAYERS</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ============ WIN ============ -->
+<div class="ovl" id="winOvl">
+  <div class="sheet">
+    <div class="crown">👑</div>
+    <h2 id="winName"></h2>
+    <div style="font-size:17px;color:var(--muted)" id="winSub"></div>
+    <div class="standings" id="standings"></div>
+    <button class="btn wide" id="againBtn" style="background:linear-gradient(#ff6b5f,var(--red));color:#fff;font-family:var(--display);letter-spacing:.05em">PLAY AGAIN 🎲</button>
+    <button class="btn ghost wide" id="closeWin" style="margin-top:10px">📋 See the final scoresheet</button>
+  </div>
+</div>
+
+<!-- ============ RULES ============ -->
+<div class="ovl" id="rulesOvl">
+  <div class="sheet">
+    <h2>🎲 Scoring cheat sheet</h2>
+    <div class="rules">
+      <h3>The singles</h3>
+      <ul><li>Each <b>1</b> = 100</li><li>Each <b>5</b> = 50</li></ul>
+      <h3>Three of a kind</h3>
+      <ul><li>Three 1s = 1000</li><li>Three 2s = 200 · 3s = 300 · 4s = 400 · 5s = 500 · 6s = 600</li></ul>
+      <h3>More of a kind</h3>
+      <ul><li>Four of a kind = 1000</li><li>Five of a kind = 2000</li><li>Six of a kind = 3000</li></ul>
+      <h3>Special rolls</h3>
+      <ul>
+        <li>Straight 1-2-3-4-5-6 = 1500</li>
+        <li>Three pairs = 1500</li>
+        <li>Two triplets = 2500</li>
+        <li>Four of a kind + a pair = 1500</li>
+      </ul>
+      <h3>The turn</h3>
+      <ul>
+        <li>Roll six dice, set aside at least one scoring die, then re-roll the rest or bank.</li>
+        <li>Score with all six dice and you get "hot dice" — roll all six again and keep building.</li>
+        <li>Roll no scoring dice at all and it's a <b>Farkle</b> — the whole pot is gone.</li>
+      </ul>
+      <h3>🏁 Finishing</h3>
+      <ul>
+        <li>First past the target starts the last lap. Everybody else gets one turn to beat them, and each
+            column shows exactly what that player needs.</li>
+        <li>Pass the leader and the lap resets around <em>you</em> — everyone gets a shot at your new number.</li>
+        <li>Go a full lap with nobody passing the leader and the leader wins.</li>
+      </ul>
+      <h3>🎠 Let it ride (roll with greed)</h3>
+      <ul>
+        <li>When someone banks and sits down, they leave their un-rolled dice on the table.</li>
+        <li>The next player can <b>let it ride</b>: pick up that banked total as their own starting pot and
+            keep rolling with whatever dice are sitting there.</li>
+        <li>Score on them and it all becomes yours to bank. Farkle and you lose the lot — but the player
+            who banked keeps their points either way.</li>
+        <li>Not feeling lucky? Tap ✕ and roll a fresh six.</li>
+        <li>If the 500-to-get-on-the-board rule is on, nobody can ride until every player has banked their
+            way onto the board.</li>
+      </ul>
+      <div class="hint">These are the common values. Every table has its own twists — tap <b>House rule</b> to name your own
+        (three 2s are worth what?) and it becomes a button you keep.</div>
+    </div>
+    <button class="btn wide" id="closeRules" style="margin-top:14px">Got it 👍</button>
+  </div>
+</div>
+
+<!-- ============ MENU ============ -->
+<div class="ovl" id="menuOvl">
+  <div class="sheet">
+    <h2>Menu</h2>
+    <button class="btn wide" id="resumeBtn" style="margin-top:10px">↩️ Back to the game</button>
+    <button class="btn ghost wide" id="newGameBtn" style="margin-top:10px">🎲 New game (same players)</button>
+    <button class="btn ghost wide" id="quitBtn" style="margin-top:10px">🏠 Change players</button>
+    <div class="diag" id="diag"></div>
+  </div>
+</div>
+
+<!-- ============ LET IT RIDE ============ -->
+<div class="ovl" id="rideOvl">
+  <div class="sheet ridesheet">
+    <button class="ridebtn take" id="rideTake">
+      <span class="bigmoji fire">🔥</span>
+      <span class="rstack">
+        <span class="rlab">LET IT RIDE</span>
+        <span class="rbig" id="ridePot"></span>
+      </span>
+    </button>
+    <button class="ridebtn fresh" id="rideNo">
+      <span class="rstack">
+        <span class="dicerow" id="freshDice"></span>
+        <span class="rlab">FRESH SIX</span>
+      </span>
+      <span class="bigmoji ice">❄️</span>
+    </button>
+  </div>
+</div>
+
+<!-- ============ LAST CALL ============ -->
+<div class="ovl" id="callOvl">
+  <div class="sheet">
+    <div class="crown" id="callIcon">🔔</div>
+    <h2 id="callTitle">Last call!</h2>
+    <div style="font-size:17px;color:var(--muted)" id="callLead"></div>
+    <div class="standings" id="callList"></div>
+    <div class="hint" style="text-align:left" id="callRule"></div>
+    <button class="btn wide" id="callGo" style="margin-top:14px;background:linear-gradient(#ffd873,var(--gold));color:#14211c">BRING IT ON 🎲</button>
+  </div>
+</div>
+
+<!-- ============ HOUSE RULE ============ -->
+<div class="ovl" id="ruleOvl">
+  <div class="sheet">
+    <h2>🏠 House rule</h2>
+    <div style="font-size:14px;color:var(--muted)">Score something your table plays that nobody else does.</div>
+    <div class="field">
+      <label for="ruleName">Call it</label>
+      <input id="ruleName" maxlength="18" placeholder="Snake eyes, Bus stop…">
+    </div>
+    <div class="field">
+      <label for="rulePts">Worth</label>
+      <input id="rulePts" type="number" step="50" placeholder="250">
+    </div>
+    <div class="field">
+      <label for="ruleDice">Dice it uses (for hot dice)</label>
+      <input id="ruleDice" type="number" min="0" max="6" step="1" placeholder="0">
+    </div>
+    <button class="btn wide" id="ruleSave" style="margin-top:14px;background:var(--green);color:#082214">💾 Save &amp; score it</button>
+    <button class="btn ghost wide" id="ruleOnce" style="margin-top:9px">Just this once</button>
+    <div class="rulelist" id="ruleList"></div>
+    <button class="btn ghost wide" id="ruleClose" style="margin-top:12px">Close</button>
+  </div>
+</div>
+
+<!-- ============ EMOJI PICKER ============ -->
+<div class="ovl" id="emojiOvl">
+  <div class="sheet">
+    <h2>Pick your icon</h2>
+    <div class="egrid" id="egrid"></div>
+    <button class="btn ghost wide" id="closeEmoji">Never mind</button>
+  </div>
+</div>
+
+<script>
+/* Never fail silently: if boot throws, say so on screen instead of showing nothing. */
+window.addEventListener('error', ev => {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:999;background:#2a1414;color:#ffd7d7;' +
+                      'font:13px/1.45 -apple-system,system-ui,sans-serif;padding:10px 12px;border-top:2px solid #ef4b4b';
+  box.textContent = '⚠️ ' + (ev.message || 'Something broke') +
+                    (ev.lineno ? ' (line ' + ev.lineno + ')' : '');
+  (document.body || document.documentElement).append(box);
+});
+
+/* =======================================================================
+   RANDOM HELPERS
+   ======================================================================= */
+/* Safari private browsing (and sandboxed frames) throw on localStorage — never let that kill the app */
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+const R  = (a,b) => a + Math.random()*(b-a);
+const RI = (a,b) => Math.floor(R(a,b+1));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+
+/* =======================================================================
+   SOUND — all synthesized, nothing to download
+   ======================================================================= */
+let AC = null, soundOn = true;
+function ctx(){
+  if(!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if(AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(o){
+  if(!soundOn) return;
+  const c = ctx(), t = c.currentTime + (o.delay||0), dur = o.dur||.15;
+  const osc = c.createOscillator(), g = c.createGain();
+  osc.type = o.type || 'triangle';
+  osc.frequency.setValueAtTime(o.freq, t);
+  if(o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide, t + dur);
+  const v = (o.vol == null ? .22 : o.vol);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(v, t + .008);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  osc.connect(g); g.connect(c.destination);
+  osc.start(t); osc.stop(t + dur + .03);
+}
+function noise(dur, vol, delay, freq, type){
+  if(!soundOn) return;
+  const c = ctx(), t = c.currentTime + (delay||0), n = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const f = c.createBiquadFilter(); f.type = type||'bandpass'; f.frequency.value = freq||1600; f.Q.value = 1.2;
+  const g = c.createGain(); g.gain.value = vol==null?.15:vol;
+  src.connect(f); f.connect(g); g.connect(c.destination);
+  src.start(t);
+}
+
+/* ---- the crude toolkit ---- */
+// A flappy, sputtering low tone. The whole reason this app has a mute button.
+function fart(o){
+  o = o || {};
+  if(!soundOn) return;
+  const c = ctx(), t0 = c.currentTime + (o.delay||0);
+  const dur = o.dur || R(.35,.8), base = o.base || R(58,130), vol = o.vol==null ? .45 : o.vol;
+  const osc = c.createOscillator();
+  osc.type = o.type || 'sawtooth';
+  osc.frequency.setValueAtTime(base, t0);
+  const steps = RI(6,16), spread = o.spread || 1;
+  for(let i=1;i<=steps;i++)
+    osc.frequency.linearRampToValueAtTime(base * R(1-.5*spread, 1+.9*spread), t0 + dur*i/steps);
+
+  const lp = c.createBiquadFilter();
+  lp.type='lowpass'; lp.frequency.value = R(280,900); lp.Q.value = R(3,11);
+
+  const g = c.createGain();
+  g.gain.setValueAtTime(.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + .02);
+  g.gain.setValueAtTime(vol, t0 + dur*.7);
+  g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+
+  // flutter — the cheeks, basically
+  const lfo = c.createOscillator(), lfoG = c.createGain();
+  lfo.type = pick(['square','sawtooth','sine']);
+  lfo.frequency.setValueAtTime(R(16,42), t0);
+  lfo.frequency.linearRampToValueAtTime(R(10,60), t0+dur);
+  lfoG.gain.value = R(.15,.45);
+  lfo.connect(lfoG); lfoG.connect(g.gain);
+
+  osc.connect(lp); lp.connect(g); g.connect(c.destination);
+  osc.start(t0); osc.stop(t0+dur+.05);
+  lfo.start(t0);  lfo.stop(t0+dur+.05);
+  if(o.wet) noise(dur*.75, .07, (o.delay||0)+.02, R(500,1100), 'lowpass');
+}
+function burp(o){ o=o||{}; fart(Object.assign({dur:R(.28,.6), base:R(42,72), type:'square', vol:.42, spread:.7}, o)); }
+function raspberry(d){ fart({dur:R(.3,.5), base:R(150,240), vol:.32, spread:1.2, delay:d||0, wet:true}); }
+function squeaker(d){ fart({dur:R(.15,.3), base:R(260,420), vol:.25, spread:1.4, delay:d||0}); }
+function splat(d){ noise(.22,.22,d||0,R(400,900),'lowpass'); tone({freq:R(90,150), slide:50, dur:.2, delay:d||0, type:'sine', vol:.2}); }
+function groan(d){
+  d = d||0;
+  const c = soundOn ? ctx() : null; if(!c) return;
+  const t = c.currentTime + d, dur = R(.5,.9);
+  const osc = c.createOscillator(); osc.type='sawtooth';
+  osc.frequency.setValueAtTime(R(150,200), t);
+  osc.frequency.exponentialRampToValueAtTime(R(75,105), t+dur);
+  const f1 = c.createBiquadFilter(); f1.type='bandpass'; f1.frequency.value=620; f1.Q.value=7;
+  const f2 = c.createBiquadFilter(); f2.type='bandpass'; f2.frequency.value=1150; f2.Q.value=9;
+  const g = c.createGain();
+  g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.3,t+.08);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  const vib = c.createOscillator(), vg = c.createGain();
+  vib.frequency.value = R(5,9); vg.gain.value = R(4,10);
+  vib.connect(vg); vg.connect(osc.frequency);
+  osc.connect(f1); f1.connect(f2); f2.connect(g); g.connect(c.destination);
+  osc.start(t); osc.stop(t+dur+.05); vib.start(t); vib.stop(t+dur+.05);
+}
+function trombone(d){
+  d = d||0;
+  [[330,.22],[294,.22],[262,.24],[196,.55]].forEach((n,i)=>
+    tone({freq:n[0], slide:n[0]*.94, dur:n[1], delay:d+i*.19, type:'sawtooth', vol:.17}));
+  tone({freq:110, slide:58, dur:.5, delay:d+.6, type:'square', vol:.12});
+}
+function buzzer(d){
+  d = d||0;
+  tone({freq:150, dur:.45, delay:d, type:'square', vol:.16});
+  tone({freq:98,  dur:.45, delay:d, type:'square', vol:.16});
+}
+function boing(d){ tone({freq:R(500,750), slide:R(70,130), dur:.4, delay:d||0, type:'triangle', vol:.24}); }
+function whistle(d){
+  d = d||0;
+  tone({freq:700, slide:1500, dur:.24, delay:d,     type:'sine', vol:.18});
+  tone({freq:1500, slide:600, dur:.34, delay:d+.24, type:'sine', vol:.18});
+}
+function kazoo(f,d){
+  d = d||0;
+  tone({freq:f, dur:.28, delay:d, type:'sawtooth', vol:.14});
+  tone({freq:f*1.01, dur:.28, delay:d, type:'square', vol:.09});
+}
+function coins(n,d){
+  d = d||0;
+  for(let i=0;i<n;i++) tone({freq:R(900,1800), dur:.09, delay:d+i*.045, type:'square', vol:.11});
+}
+function fanfare(d){
+  d = d||0;
+  [[523,0],[659,.13],[784,.26],[1047,.39],[784,.6],[1047,.72]].forEach(([f,t])=>{
+    tone({freq:f, dur:.3, delay:d+t, type:'triangle', vol:.22});
+    tone({freq:f/2, dur:.3, delay:d+t, type:'sine', vol:.12});
+  });
+  tone({freq:1319, dur:.9, delay:d+.95, type:'triangle', vol:.2});
+}
+/* ---- the good news department ---- */
+function sparkle(d){
+  d = d||0;
+  [1319,1760,2093].forEach((f,i)=> tone({freq:f, dur:.13, delay:d+i*.05, type:'sine', vol:.13}));
+  noise(.12,.03,d+.05,4000,'highpass');
+}
+function levelUp(d){
+  d = d||0;
+  [523,784,1047,1568].forEach((f,i)=> tone({freq:f, dur:.1, delay:d+i*.055, type:'square', vol:.11}));
+}
+function bellChord(d){
+  d = d||0;
+  [523,659,784,1047].forEach(f=>{ tone({freq:f, dur:.55, delay:d, type:'sine', vol:.11}); });
+}
+function chaChing(d){
+  d = d||0;
+  tone({freq:1568, dur:.11, delay:d, type:'sine', vol:.2});
+  tone({freq:2093, dur:.38, delay:d+.09, type:'sine', vol:.15});
+  coins(4, d+.04);
+}
+function applause(d){
+  d = d||0;
+  for(let i=0;i<18;i++) noise(.13, .045, d + Math.random()*1.0, 1800+Math.random()*2600, 'bandpass');
+}
+function arp(pts){
+  const seq = pts >= 1500 ? [523,659,784,1047,1319]
+            : pts >= 500  ? [523,659,880]
+            : pts >= 200  ? [587,880] : [784,1047];
+  seq.forEach((f,i)=> tone({freq:f, dur:.13, delay:i*.055, type:'triangle', vol:.2}));
+}
+
+/* ---- randomized pools: you rarely hear the same thing twice ---- */
+const CRUDE_TAP = [
+  ()=> tone({freq:R(600,900), dur:.05, type:'square', vol:.09}),
+  ()=> tone({freq:R(800,1200), dur:.05, type:'sine', vol:.10}),
+  ()=> squeaker()
+];
+/* ---- one fixed sound per scoring button, so the table learns them by ear ---- */
+const NOTE = {C5:523,D5:587,E5:659,F5:698,G5:784,A5:880,B5:988,C6:1047,D6:1175,E6:1319,G6:1568,A6:1760,C7:2093};
+function run(freqs, gap, dur, type, vol){
+  freqs.forEach((f,i)=> tone({freq:f, dur:dur||.13, delay:i*(gap||.07), type:type||'triangle', vol:vol==null?.19:vol}));
+}
+const SCORE_SFX = {
+  // the two you press all night: short, distinct, unmistakable
+  one(){  run([NOTE.C6, NOTE.E6], .075, .12); },
+  five(){ run([NOTE.G5], .0, .12, 'sine', .2); },
+
+  // three of a kind: three rising notes, the whole figure climbing with the die value
+  t2(){ this._tri(2); }, t3(){ this._tri(3); }, t4(){ this._tri(4); }, t5(){ this._tri(5); }, t6(){ this._tri(6); },
+  t1(){ run([NOTE.C6,NOTE.E6,NOTE.G6,NOTE.C7], .085, .17); sparkle(.36); },   // 1000 — the big triple
+  _tri(v){
+    const root = [0,0,392,440,494,554,622][v];           // G4 A4 B4 C#5 D#5
+    run([root, root*1.26, root*1.5], .07 + v*.008, .13 + v*.012);
+  },
+
+  // more of a kind: heavier, lower, with a stab per die
+  k4(){ this._kind(4); }, k5(){ this._kind(5); }, k6(){ this._kind(6); },
+  _kind(n){
+    const base = 196 + (n-4)*33;
+    for(let i=0;i<n;i++) tone({freq:base*Math.pow(1.18,i), dur:.16, delay:i*.075, type:'sawtooth', vol:.14});
+    tone({freq:base*2.4, slide:base*4, dur:.4, delay:n*.075, type:'triangle', vol:.17});
+  },
+
+  // specials — each its own shape
+  straight(){ run([392,440,494,523,587,659,784], .06, .12, 'triangle', .17); sparkle(.48); },
+  pairs(){ [0,.2,.4].forEach(d => { tone({freq:659,dur:.1,delay:d,type:'triangle',vol:.18});
+                                    tone({freq:988,dur:.1,delay:d+.06,type:'triangle',vol:.18}); }); },
+  triplets(){ [523,659,784].forEach(f=>tone({freq:f,dur:.22,type:'triangle',vol:.13}));
+              [587,740,880].forEach(f=>tone({freq:f,dur:.3,delay:.26,type:'triangle',vol:.13})); sparkle(.5); },
+  fourpair(){ [349,440,523].forEach(f=>tone({freq:f,dur:.26,type:'triangle',vol:.13}));
+              run([698,880], .1, .18); },
+
+  house(){ bellChord(); },
+  fallback(){ run([NOTE.E6, NOTE.A6], .07, .13); }
+};
+/* all six dice set aside — a sizzle and a scramble back up the scale */
+function hotDice(){
+  noise(.55, .12, .05, 3200, 'highpass');                       // the sizzle
+  run([392,523,659,784,1047,1319], .055, .14, 'square', .13);
+  sparkle(.42);
+  tone({freq:1568, slide:2637, dur:.5, delay:.45, type:'triangle', vol:.15});
+}
+const CRUDE_FARKLE = [
+  ()=> { fart({dur:R(.6,.95), base:R(55,80), wet:true}); },
+  ()=> { fart({dur:.22, base:190, vol:.3}); fart({delay:.28, dur:.6, base:R(55,80)}); },   // the double-toot
+  ()=> { trombone(); fart({delay:.9, dur:.5, base:70}); },
+  ()=> { burp(); groan(.45); },
+  ()=> { raspberry(); splat(.35); },
+  ()=> { buzzer(); fart({delay:.4, dur:.5, wet:true}); },
+  ()=> { fart({dur:1.15, base:52, spread:1.3, wet:true}); },                                // the long one
+  ()=> { squeaker(); squeaker(.18); fart({delay:.36, dur:.55, base:65}); },
+  ()=> { groan(); splat(.5); },
+  ()=> { tone({freq:900, slide:90, dur:.5, type:'sine', vol:.2}); splat(.5); },             // falling whistle + splat
+  ()=> { fart({dur:.5, base:R(60,90)}); groan(.45); buzzer(1.0); },
+  ()=> { burp({dur:.5, vol:.45}); fart({delay:.55, dur:.4, base:200, vol:.28}); }           // burp, then a little one
+];
+/* ---- the cash register: same every time you bank ---- */
+function kaChing(pts){
+  // "ka" — the key strike
+  tone({freq:1245, dur:.07, type:'square', vol:.14});
+  noise(.05,.10,0,3000,'highpass');
+  // "ching" — the bell
+  tone({freq:2093, dur:.5, delay:.07, type:'sine', vol:.2});
+  tone({freq:3136, dur:.42, delay:.075, type:'sine', vol:.11});
+  tone({freq:1568, dur:.5, delay:.08, type:'sine', vol:.12});
+  // the drawer rolling out, longer for a fatter turn
+  noise(.22, .07, .16, 900, 'lowpass');
+  tone({freq:150, slide:96, dur:.3, delay:.16, type:'sine', vol:.12});
+  coins(Math.min(7, 2 + Math.floor((pts||0)/400)), .3);
+}
+
+/* ---- let it ride: a quiet ticking loop while the table holds its breath ---- */
+let suspense = null;
+function suspenseBar(t0){
+  const c = ctx();
+  // four low pulses and a woodblock tick, Jeopardy-ish but ours
+  [0,.5,1,1.5].forEach((d,i)=>{
+    tone({freq:[196,220,247,220][i], dur:.34, delay:t0+d, type:'triangle', vol:.055});
+    tone({freq:[98,110,123,110][i],  dur:.34, delay:t0+d, type:'sine',     vol:.045});
+    noise(.03, .022, t0+d+.25, 2600, 'bandpass');
+  });
+}
+function startSuspense(){
+  if(suspense || !soundOn) return;
+  suspenseBar(0);
+  suspense = setInterval(()=> suspenseBar(0), 2000);
+}
+function stopSuspense(){ if(suspense){ clearInterval(suspense); suspense = null; } }
+// the music holds only until the next press — state-backed so undo/redo bring the tension back
+function syncSuspense(){
+  if(G && G.riding && G.tense && !G.over && soundOn) startSuspense(); else stopSuspense();
+}
+function breakTense(scored){
+  stopSuspense();
+  if(!G || !G.tense) return;
+  G.tense = false;
+  if(scored) rideCheer();                       // they picked it up and immediately scored
+}
+function rideCheer(){
+  for(let i=0;i<12;i++) noise(.3+Math.random()*.3, .04, Math.random()*.22, 900+Math.random()*1800, 'bandpass');
+  [880,1175,1568].forEach((f,i)=> tone({freq:f, dur:.22, delay:i*.06, type:'triangle', vol:.13}));
+}
+/* ---- the crowd ---- */
+function cheer(d){
+  d = d||0;
+  for(let i=0;i<26;i++) noise(.5+Math.random()*.5, .05, d+Math.random()*.5, 700+Math.random()*2200, 'bandpass');
+  [0,.09,.18].forEach((t,i)=> tone({freq:[880,1175,1568][i], slide:[1175,1568,2093][i], dur:.5, delay:d+t, type:'triangle', vol:.16}));
+  whistle(d+.45);
+}
+function crowdAww(d){
+  d = d||0;
+  // a room full of people going "ohhhh" and deflating
+  for(let i=0;i<5;i++){
+    const f = 190 + i*24;
+    tone({freq:f, slide:f*.62, dur:1.25, delay:d+i*.045, type:'sawtooth', vol:.055});
+  }
+  noise(1.0, .05, d, 750, 'lowpass');
+  tone({freq:110, slide:62, dur:1.1, delay:d+.2, type:'sine', vol:.1});
+}
+const WIN_SFX = [
+  ()=> { fanfare(); applause(.9); sparkle(1.5); },
+  ()=> { fanfare(); coins(10,1.2); sparkle(1.6); },
+  ()=> { fanfare(); whistle(1.35); applause(1.1); },
+  ()=> { fanfare(); bellChord(1.3); applause(1.0); sparkle(1.9); }
+];
+const CRUDE_NOPE = [
+  ()=> buzzer(),
+  ()=> { squeaker(); },
+  ()=> { fart({dur:.18, base:R(90,140), vol:.28}); },
+  ()=> { tone({freq:200, dur:.12, type:'square', vol:.15}); tone({freq:160, dur:.16, delay:.1, type:'square', vol:.15}); }
+];
+
+const S = {
+  tap(){ breakTense(false); pick(CRUDE_TAP)(); },   // any other button kills the music too
+  // the same button always makes the same noise
+  score(id, pts){ (SCORE_SFX[id] ? SCORE_SFX[id].bind(SCORE_SFX) : SCORE_SFX.fallback)(pts); },
+  bank(pts, wasRiding){
+    stopSuspense();
+    if(wasRiding){ cheer(); kaChing(pts); }      // they went for it and made it
+    else kaChing(pts);
+  },
+  win(){ pick(WIN_SFX)(); },
+  hot(){ hotDice(); },
+  offer(){ tone({freq:784,dur:.16,type:'triangle',vol:.16}); tone({freq:1047,dur:.3,delay:.12,type:'triangle',vol:.16}); },
+  lastCall(){                                   // a bell, then the room going quiet
+    [0,.22].forEach(d=>{
+      tone({freq:1568, dur:.9, delay:d, type:'sine', vol:.18});
+      tone({freq:2349, dur:.7, delay:d, type:'sine', vol:.09});
+    });
+    tone({freq:196, dur:1.1, delay:.3, type:'triangle', vol:.1});
+  },
+  ride(){ pick([
+    ()=>{ levelUp(); sparkle(.26); },
+    ()=>{ kazoo(523,0); kazoo(659,.13); kazoo(880,.26); sparkle(.42); },
+    ()=>{ boing(); coins(5,.15); sparkle(.4); },
+    ()=>{ [523,659,784,1047].forEach((f,i)=> tone({freq:f, dur:.16, delay:i*.07, type:'triangle', vol:.2})); }
+  ])(); },
+  // and bad things sound bad
+  farkle(wasRiding){
+    stopSuspense();
+    pick(CRUDE_FARKLE)();
+    if(wasRiding) crowdAww(.35);                 // they went for it and blew it
+  },
+  nope(){ pick(CRUDE_NOPE)(); },
+  undo(){ breakTense(false); tone({freq:520, slide:300, dur:.14, type:'sine', vol:.16}); },
+  redo(){ breakTense(false); tone({freq:300, slide:560, dur:.14, type:'sine', vol:.16}); },
+  turn(){
+    if(Math.random()<.25) return raspberry();
+    tone({freq:440, dur:.1, type:'sine', vol:.14});
+    tone({freq:660, dur:.12, delay:.08, type:'sine', vol:.14});
+  }
+};
+
+/* ---- trash talk ---- */
+const SAY = {
+  farkle:['FARKLE! 💀','YOU BLEW IT 💨','WHO FARTED? 💨','THAT STINKS 💩','OH CRAP! 💩','TOTAL GARBAGE 🗑️',
+               'WOMP WOMP 🎺','NICE ONE, GENIUS 🙄','SKILL ISSUE 💀','SIT DOWN 🪑','THAT SUCKED 🌪️','BUTT DIALED 🍑',
+               'GREEDY BASTARD 😈','ZONK! 😱','PANTS FULL 😬','SHART! 💩','BOOOOO 👎'],
+  bank:['🤑','😤','😈','💰','🍑','😏','🔥'],
+  big:['FILTHY RICH 🤑','GET SOME 😤','SHOW OFF 😏','ABSOLUTE UNIT 💪','DIRTY MONEY 💰'],
+  hot:["PICK 'EM UP! 🔥","KEEP ON TRUCKIN' 🚚","FRESH DICE, BABY! 🎲","ALL SIX BACK! 🔥",
+       "HOT DICE! 🔥","ROLL 'EM AGAIN! 🎲","SIX MORE COMIN' 🔥","CLEAN SWEEP! 🧹"]
+};
+
+/* =======================================================================
+   DICE — drawn as real dice, not text glyphs
+   ======================================================================= */
+const PIPS = {
+  1:[[50,50]],
+  2:[[30,30],[70,70]],
+  3:[[30,30],[50,50],[70,70]],
+  4:[[30,30],[70,30],[30,70],[70,70]],
+  5:[[30,30],[70,30],[50,50],[30,70],[70,70]],
+  6:[[30,28],[70,28],[30,50],[70,50],[30,72],[70,72]]
+};
+function diceSprite(){
+  const faces = [1,2,3,4,5,6].map(n => `
+    <symbol id="die-${n}" viewBox="0 0 100 100">
+      <rect x="3" y="3" width="94" height="94" rx="22" fill="url(#dieBody)" stroke="#b9bfc4" stroke-width="1.5"/>
+      <rect x="8" y="7" width="84" height="40" rx="17" fill="url(#dieGloss)"/>
+      ${PIPS[n].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#pip)"/>`).join('')}
+    </symbol>`).join('');
+  return `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <linearGradient id="dieBody" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f2f0ea"/><stop offset="1" stop-color="#d5d2c9"/>
+      </linearGradient>
+      <linearGradient id="dieGloss" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="pip" cx=".35" cy=".3" r=".85">
+        <stop offset="0" stop-color="#4a4f55"/><stop offset=".6" stop-color="#23272b"/><stop offset="1" stop-color="#0e1113"/>
+      </radialGradient>
+    </defs>${faces}
+    <symbol id="die-x" viewBox="0 0 100 100">
+      <rect x="3" y="3" width="94" height="94" rx="22" fill="url(#dieBody)" stroke="#b9bfc4" stroke-width="1.5"/>
+      <rect x="8" y="7" width="84" height="40" rx="17" fill="url(#dieGloss)"/>
+      <path d="M33 33 L67 67 M67 33 L33 67" stroke="#23272b" stroke-width="12" stroke-linecap="round"/>
+    </symbol>
+  </svg>`;
+}
+// {die:3, mult:3} → "3× ⚂"   ·   {emoji:'➡️'} → the emoji
+function iconHTML(ic){
+  if(!ic) return '<span class="emo">🎲</span>';
+  if(typeof ic === 'string') return `<span class="emo">${ic}</span>`;   // games saved before the dice art
+  if(ic.emoji) return `<span class="emo">${ic.emoji}</span>`;
+  const m = ic.mult ? `<span class="mult">${ic.mult}×</span>` : '';
+  return `${m}<svg class="die"><use href="#die-${ic.die}"/></svg>`;
+}
+
+/* =======================================================================
+   SCORING BUTTONS
+   ======================================================================= */
+const SINGLES = [
+  {id:'one',  lab:'Single 1', pts:100, dice:1, icon:{die:1}},
+  {id:'five', lab:'Single 5', pts:50,  dice:1, icon:{die:5}}
+];
+const TRIPLES = [1,2,3,4,5,6].map(n => ({
+  id:'t'+n, lab:'Three '+n+"'s", pts:(n===1?1000:n*100), dice:3, icon:{die:n, mult:3}
+}));
+const KINDS = [
+  {id:'k4', lab:'4 of a kind', pts:1000, dice:4, icon:{die:'x', mult:4}},
+  {id:'k5', lab:'5 of a kind', pts:2000, dice:5, icon:{die:'x', mult:5}},
+  {id:'k6', lab:'6 of a kind', pts:3000, dice:6, icon:{die:'x', mult:6}}
+];
+const SPECIALS = [
+  {id:'straight', lab:'Straight 1-6',      pts:1500, dice:6, icon:{emoji:'➡️'}},
+  {id:'pairs',    lab:'Three pairs',       pts:1500, dice:6, icon:{emoji:'👯'}},
+  {id:'triplets', lab:'Two triplets',      pts:2500, dice:6, icon:{emoji:'🎰'}},
+  {id:'fourpair', lab:'4 of a kind + pair',pts:1500, dice:6, icon:{emoji:'🃏'}}
+];
+
+/* =======================================================================
+   STATE
+   ======================================================================= */
+const COLORS = ['#e23c3c','#3aa0d8','#8a63d2','#e08a1e','#1d8a4c','#d4409a','#00a3a3','#7b5e3b'];
+const EMOJI  = ['🐙','🦊','🐸','🦄','🐝','🦁','🐼','🐧'];
+const PICKABLE = ['🐙','🦊','🐸','🦄','🐝','🦁','🐼','🐧','🐨','🐵','🦖','🦑','🐢','🦩','🐰','🐺','🦉','🐴',
+                  '🐷','🦨','🦡','🐊','🦈','🐌','🦞','🐲','🐔','🦆','👻','💀','👽','🤖','🤡','😈','👑','🍕',
+                  '🌮','🍩','🍑','🍺','🥃','🚀','⚡️','🔥','💩','🎃','🥷','🦸','🧙','🍄','🌵','🎩','🕶️','🏴‍☠️'];
+const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules';
+
+let G = null;          // live game
+let lineup = [];       // players in the next game: {name, emoji, color}
+let roster = [];       // everyone we've ever met: {name, emoji, color}
+let houseRules = [];   // named custom scores: {name, pts}
+let past = [], future = [];   // every button press, backwards and forwards
+
+const $ = s => document.querySelector(s);
+const el = (t,c,h) => { const e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e; };
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isDefaultName = n => /^player \d+$/i.test((n||'').trim());
+const fmt = n => n.toLocaleString('en-US');
+
+/* ---------- the bench: players we remember ---------- */
+function loadRoster(){
+  try{ roster = JSON.parse(LS.get(ROSTER)) || []; }catch(e){ roster = []; }
+}
+function saveRoster(){ LS.set(ROSTER, JSON.stringify(roster)); }
+function remember(players){
+  players.forEach(p=>{
+    const name = (p.name||'').trim();
+    if(!name || isDefaultName(name)) return;      // don't clutter the bench with "Player 2"
+    const hit = roster.find(r => r.name.toLowerCase() === name.toLowerCase());
+    if(hit){ hit.name = name; hit.emoji = p.emoji; hit.color = p.color; }
+    else roster.push({name, emoji:p.emoji, color:p.color});
+  });
+  if(roster.length > 30) roster = roster.slice(-30);
+  saveRoster();
+}
+function freeEmoji(){
+  const used = lineup.map(p=>p.emoji);
+  return EMOJI.find(e=>!used.includes(e)) || pick(PICKABLE);
+}
+function freeColor(){
+  const used = lineup.map(p=>p.color);
+  return COLORS.find(c=>!used.includes(c)) || pick(COLORS);
+}
+function newPlayer(name){
+  return {name: name || 'Player '+(lineup.length+1), emoji: freeEmoji(), color: freeColor()};
+}
+
+/* ---------- emoji picker ---------- */
+let emojiCB = null;
+function openEmoji(cb){
+  emojiCB = cb;
+  const g = $('#egrid'); g.innerHTML = '';
+  PICKABLE.forEach(e=>{
+    const b = el('button', null, e);
+    b.onclick = () => { $('#emojiOvl').classList.remove('on'); S.tap(); emojiCB && emojiCB(e); };
+    g.append(b);
+  });
+  $('#emojiOvl').classList.add('on');
+}
+$('#closeEmoji').onclick = () => { S.tap(); $('#emojiOvl').classList.remove('on'); };
+
+/* ---------- setup screen ---------- */
+let justMoved = -1;
+function move(i, dir){
+  const j = i + dir;
+  if(j < 0 || j >= lineup.length) return;
+  [lineup[i], lineup[j]] = [lineup[j], lineup[i]];
+  S.tap();
+  justMoved = j;
+  renderPlayers();
+  justMoved = -1;
+}
+function renderPlayers(){
+  const wrap = $('#plist'); wrap.innerHTML = '';
+  lineup.forEach((p,i)=>{
+    const row = el('div','prow');
+    const chip = el('button','chip', p.emoji);
+    chip.style.background = p.color;
+    chip.title = 'Change icon';
+    chip.onclick = () => { S.tap(); openEmoji(e => { p.emoji = e; renderPlayers(); remember([p]); }); };
+    const inp = el('input'); inp.value = p.name; inp.placeholder = 'Player '+(i+1); inp.maxLength = 14;
+    inp.oninput = () => { p.name = inp.value; renderBench(); };
+    row.append(chip, inp);
+
+    // turn order
+    const ord = el('div','ord');
+    const up = el('button', null, '▲'), dn = el('button', null, '▼');
+    up.disabled = i === 0; dn.disabled = i === lineup.length-1;
+    up.onclick = () => move(i, -1);
+    dn.onclick = () => move(i, +1);
+    ord.append(up, dn);
+    row.append(ord);
+
+    if(lineup.length > 1){
+      const x = el('button','x','✕');
+      x.title = 'Send to the bench';
+      x.onclick = () => { S.tap(); remember([p]); lineup.splice(i,1); renderPlayers(); };
+      row.append(x);
+    }
+    if(i === justMoved) row.classList.add('moved');
+    wrap.append(row);
+  });
+  renderBench();
+}
+function renderBench(){
+  const inGame = lineup.map(p => (p.name||'').trim().toLowerCase());
+  const benched = roster.filter(r => !inGame.includes(r.name.toLowerCase()));
+  $('#benchWrap').style.display = benched.length ? '' : 'none';
+  const b = $('#bench'); b.innerHTML = '';
+  benched.forEach(r=>{
+    const pill = el('button','pill',
+      `<span class="pe" style="background:${r.color}">${r.emoji}</span><span class="pn">${esc(r.name)}</span>`);
+    pill.onclick = () => {
+      if(lineup.length >= 8){ S.nope(); return; }
+      S.tap();
+      // drop them into an empty default slot if there is one, otherwise add
+      const slot = lineup.findIndex(p => isDefaultName(p.name) || !p.name.trim());
+      const entry = {name:r.name, emoji:r.emoji, color:r.color};
+      if(slot >= 0) lineup[slot] = entry; else lineup.push(entry);
+      renderPlayers();
+    };
+    const f = el('button','pf','✕');
+    f.title = 'Forget this player';
+    f.onclick = ev => {
+      ev.stopPropagation(); S.tap();
+      roster = roster.filter(x => x.name.toLowerCase() !== r.name.toLowerCase());
+      saveRoster(); renderBench();
+    };
+    pill.append(f);
+    b.append(pill);
+  });
+}
+$('#addPlayer').onclick = () => {
+  if(lineup.length >= 8){ S.nope(); return; }
+  S.tap(); lineup.push(newPlayer()); renderPlayers();
+  const inputs = document.querySelectorAll('#plist input');
+  inputs[inputs.length-1].focus(); inputs[inputs.length-1].select();
+};
+function wireSwitch(id, onChange){
+  const sw = $('#'+id);
+  sw.onclick = () => {
+    S.tap(); sw.classList.toggle('on');
+    sw.setAttribute('aria-checked', sw.classList.contains('on'));
+    onChange && onChange(sw.classList.contains('on'));
+  };
+}
+wireSwitch('onboard');
+wireSwitch('letride');
+$('#start').onclick = () => {
+  lineup.forEach((p,i)=>{ p.name = (p.name||'').trim() || 'Player '+(i+1); });
+  remember(lineup);
+  startGame(lineup, {
+    target: Math.max(500, parseInt($('#target').value)||10000),
+    minOnBoard: $('#onboard').classList.contains('on') ? 500 : 0,
+    letRide: $('#letride').classList.contains('on')
+  });
+};
+
+/* ---------- game lifecycle ---------- */
+function startGame(list, opts){
+  G = {
+    players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji, turns:[], rode:[]})),
+    target: opts.target, minOnBoard: opts.minOnBoard, letRide: opts.letRide,
+    cur:0, pot:0, tape:[], lastCaller:null, over:false,
+    table:null,      // what the last banker left behind: {from, pts, dice}
+    riding:false,    // this turn was picked up from the table
+    tense:false      // ...and the suspense music is still holding
+  };
+  past = []; future = [];
+  $('#winOvl').classList.remove('on');
+  $('#callOvl').classList.remove('on');
+  $('#rideOvl').classList.remove('on');
+  show('game');
+  buildPad();
+  render();
+  S.turn();
+  save();
+}
+function show(which){
+  $('#setup').classList.toggle('on', which==='setup');
+  $('#game').classList.toggle('on', which==='game');
+}
+function total(p){ return p.turns.reduce((a,b)=>a+b,0); }
+// with the opening-bank rule on, nobody rides until every player has banked their way onto the board
+function everyoneOnBoard(){
+  if(!G.minOnBoard) return true;
+  return G.players.every(p => p.turns.some(v => v > 0));
+}
+/* every action that changes the game records a step first, so undo walks back one press at a time */
+function step(){
+  past.push(JSON.stringify(G));
+  if(past.length > 120) past.shift();
+  future.length = 0;                       // a fresh move abandons the redo branch
+  paintSteps();
+}
+function applyState(json){
+  G = JSON.parse(json);
+  G.tense = false;              // you pressed a key to get here, so the music stays off
+  $('#callOvl').classList.remove('on');
+  $('#rideOvl').classList.remove('on');
+  render(); save();
+  $('#winOvl').classList.toggle('on', !!G.over);
+  paintSteps();
+}
+function paintSteps(){
+  $('#undoBtn').disabled = !past.length;
+  $('#redoBtn').disabled = !future.length;
+}
+
+/* ---------- scoring pad ---------- */
+function buildPad(){
+  const pad = $('#pad'); pad.innerHTML = ''; pad.scrollTop = 0;
+
+  const left = el('div','padleft');
+  SINGLES.forEach(s => {                       // just the die and the score — no words
+    const b = el('button','sbtn huge', `<div class="face">${iconHTML(s.icon)}</div><div class="pts">+${s.pts}</div>`);
+    b.onclick = () => addScore(s.lab, s.pts, s.icon, s.id, s.dice);
+    left.append(b);
+  });
+  pad.append(left);
+
+  const right = el('div','padright');
+
+  right.append(el('div','seclab','THREE OF A KIND'));
+  const gt = el('div','gtri');
+  TRIPLES.forEach(s => gt.append(mkBtn(s, null, true)));      // the dice say it — no words needed
+  right.append(gt);
+
+  right.append(el('div','seclab','MORE OF A KIND'));
+  const gk = el('div','gkind');
+  KINDS.forEach(s => gk.append(mkBtn(s, null, true)));
+  right.append(gk);
+
+  right.append(el('div','seclab','SPECIAL ROLLS'));
+  const gs = el('div','gspec');
+  SPECIALS.forEach(s => gs.append(mkBtn(s,'spec')));
+  houseRules.forEach(r => gs.append(mkBtn({id:'house', icon:{emoji:'🏠'}, lab:r.name, pts:r.pts, dice:r.dice||0}, 'house')));
+  const custom = el('button','sbtn cust plus','+');
+  custom.title = 'Add a house rule';
+  custom.onclick = openRuleSheet;
+  gs.append(custom);
+  right.append(gs);
+
+  pad.append(right);
+}
+function mkBtn(s, cls, hideLab){
+  const b = el('button', 'sbtn' + (cls ? ' '+cls : ''),
+    `<div class="face">${iconHTML(s.icon)}</div>` +
+    (hideLab ? '' : `<div class="lab">${esc(s.lab)}</div>`) +
+    `<div class="pts${s.pts<0?' neg':''}">${s.pts>0?'+':''}${s.pts}</div>`);
+  b.title = s.lab;
+  b.onclick = () => addScore(s.lab, s.pts, s.icon, s.id, s.dice);
+  return b;
+}
+/* ---------- house rules: name them once, keep them forever ---------- */
+function loadRules(){
+  try{ houseRules = JSON.parse(LS.get(RULES)) || []; }catch(e){ houseRules = []; }
+}
+function saveRules(){ LS.set(RULES, JSON.stringify(houseRules)); }
+function openRuleSheet(){
+  S.tap();
+  $('#ruleName').value = ''; $('#rulePts').value = ''; $('#ruleDice').value = '';
+  renderRuleList();
+  $('#ruleOvl').classList.add('on');
+  setTimeout(()=> $('#ruleName').focus(), 60);
+}
+function renderRuleList(){
+  const list = $('#ruleList');
+  list.innerHTML = houseRules.length ? '<div class="field"><label>Saved rules</label></div>' : '';
+  houseRules.forEach((r,i)=>{
+    const row = el('div','rulerow',
+      `<span class="rn">🏠 ${esc(r.name)}${r.dice ? ` <span style="color:var(--muted);font-size:13px">${r.dice}🎲</span>` : ''}</span>` +
+      `<span class="rp">${r.pts>0?'+':''}${r.pts}</span>`);
+    const del = el('button','rd','✕');
+    del.title = 'Forget this rule';
+    del.onclick = () => { S.tap(); houseRules.splice(i,1); saveRules(); renderRuleList(); buildPad(); };
+    row.append(del);
+    list.append(row);
+  });
+}
+function ruleInput(){
+  const pts = parseInt($('#rulePts').value, 10);
+  if(!pts){ S.nope(); bump($('#rulePts')); return null; }
+  const name = ($('#ruleName').value || '').trim() || (pts > 0 ? 'House rule' : 'Penalty');
+  const dice = Math.max(0, Math.min(6, parseInt($('#ruleDice').value, 10) || 0));
+  return {name, pts, dice};
+}
+$('#ruleSave').onclick = () => {
+  const r = ruleInput(); if(!r) return;
+  const hit = houseRules.findIndex(x => x.name.toLowerCase() === r.name.toLowerCase());
+  if(hit >= 0) houseRules[hit] = r; else houseRules.push(r);
+  saveRules(); buildPad();
+  $('#ruleOvl').classList.remove('on');
+  addScore(r.name, r.pts, {emoji:'🏠'}, 'house', r.dice);
+};
+$('#ruleOnce').onclick = () => {
+  const r = ruleInput(); if(!r) return;
+  $('#ruleOvl').classList.remove('on');
+  addScore(r.name, r.pts, {emoji:'🏠'}, 'house', r.dice);
+};
+$('#ruleClose').onclick = () => { S.tap(); $('#ruleOvl').classList.remove('on'); };
+function diceUsed(){ return G.tape.reduce((a,x)=> a + (x.dice||0), 0); }
+
+function addScore(lab, pts, icon, id, dice){
+  if(G.over) return;
+  breakTense(true);
+  step();
+  const setsBefore = Math.floor(diceUsed() / 6);
+  G.tape.push({lab, pts, dice: dice||0, icon: icon || {emoji:'🎲'}});
+  G.pot += pts;
+  S.score(id, pts);
+  if(Math.floor(diceUsed() / 6) > setsBefore){          // all six set aside — roll them all again
+    S.hot();
+    setTimeout(()=> toast(pick(SAY.hot)), 260);
+  }
+  const pot = $('#pot');
+  pot.classList.remove('pop'); void pot.offsetWidth; pot.classList.add('pop');
+  render(); save();
+}
+
+/* ---------- render ---------- */
+function render(){
+  const curRow = G.players[G.cur].turns.length;
+  // once it's over there's no turn in progress, so don't leave an empty row hanging
+  const rows = Math.max(1, ...G.players.map(p=>p.turns.length), G.over ? 0 : curRow + 1);
+
+  const chasing = G.lastCaller !== null;                       // the last round is on
+  const leadTot = chasing ? total(G.players[G.lastCaller]) : 0;
+
+  let h = '<thead><tr><th></th>';
+  G.players.forEach((p,i)=>{
+    const t = total(p);
+    const pct = Math.max(0, Math.min(100, (t / G.target) * 100));
+    let gap = '';
+    if(chasing && !G.over){
+      gap = i === G.lastCaller
+        ? '<span class="need lead">👑 leading</span>'
+        : `<span class="need">needs ${fmt(leadTot + 50 - t)}</span>`;
+    }
+    h += `<th data-p="${i}" title="Change icon" class="${i===G.cur && !G.over ? 'act':''}">
+            <span class="pfill" style="width:${pct.toFixed(1)}%"></span>
+            <span class="phead">
+              <span class="pinfo">
+                <span class="nm">${esc(p.name)}</span>
+                <span class="tot">${fmt(t)}</span>${gap}
+              </span>
+              <span class="pemoji">${p.emoji}</span>
+            </span>
+            <span class="ptrack"><span class="pbar" style="width:${pct.toFixed(1)}%"></span></span></th>`;
+  });
+  h += '</tr></thead><tbody>';
+  for(let r=0; r<rows; r++){
+    h += `<tr class="${r===curRow && !G.over ? 'thisrow':''}"><td class="turnno">${r+1}</td>`;
+    G.players.forEach((p,i)=>{
+      if(r < p.turns.length){
+        const v = p.turns[r], rode = p.rode && p.rode[r] ? ' 🎠' : '';
+        h += `<td class="${v===0 ? 'farkle':''}">${v===0 ? '💀' : v}<small>${rode}</small></td>`;
+      } else if(i===G.cur && r===curRow && !G.over){
+        h += `<td class="live${G.riding ? ' riding':''}">${G.pot || '—'}</td>`;
+      } else h += '<td></td>';
+    });
+    h += '</tr>';
+  }
+  h += '</tbody>';
+  const grid = $('#grid');
+  grid.innerHTML = h;
+  grid.querySelectorAll('th[data-p]').forEach(th=>{
+    th.onclick = () => {
+      const p = G.players[+th.dataset.p];
+      S.tap();
+      openEmoji(e => { p.emoji = e; remember([p]); render(); save(); });
+    };
+  });
+
+  const p = G.players[G.cur], t = total(p);
+  const need = G.minOnBoard && t === 0 ? ` · needs ${G.minOnBoard} to get on the board` : '';
+  // during the last round, say exactly what it takes to pass the leader — counting what's already in the pot
+  let chase = '';
+  if(chasing && !G.over){
+    const lead = G.players[G.lastCaller], short = leadTot + 50 - (t + G.pot);
+    chase = short > 0
+      ? ` · <span class="chase">🔥 needs ${fmt(short)} more to pass ${esc(lead.name)} (${fmt(leadTot)})</span>`
+      : ` · <span class="chase">🔥 BANK NOW AND YOU TAKE THE LEAD</span>`;
+  }
+  const rode = G.riding ? ' · <span class="chase">🎠 riding!</span>' : '';
+  const set = diceUsed() % 6;                    // how close this roll is to freeing all six
+  const dice = G.tape.length ? ` · <span class="dcount">${set} of 6 dice set aside</span>` : '';
+  // explain the missing offer at the moment someone would expect to see it
+  const held = (G.letRide && G.table && !G.riding && !G.tape.length && !everyoneOnBoard())
+    ? ' · 🎠 rides open once everyone\'s on the board' : '';
+  $('#who').innerHTML = `<div class="wname">${p.emoji} <b>${esc(p.name)}</b></div>` +
+                        `<div class="wsub">${fmt(t)} pts${need}${dice}${rode}${held}${chase}</div>`;
+
+  $('#pot').innerHTML = `${G.pot}<small>IN THE POT</small>`;
+  $('#bankSub').textContent = G.pot ? `${t} → ${t + G.pot}` : '';
+
+  const tape = $('#tape'); tape.innerHTML = '';
+  let rolled = 0, sets = 0;                      // to mark where the dice came back fresh
+  G.tape.forEach((x,i)=>{
+    const tag = el('button','tag' + (x.ride ? ' rode' : ''),
+      `<span class="tf">${iconHTML(x.icon || x.face)}</span>` +
+      `<span class="tp${x.pts<0?' neg':''}">${x.pts>0?'+':''}${x.pts}</span>`);
+    tag.title = x.lab + ' — tap to remove';
+    tag.onclick = () => { step(); S.undo(); G.pot -= x.pts; G.tape.splice(i,1); render(); save(); };
+    tape.append(tag);
+    // everything after the inherited pot is what this player rolled themselves
+    if(x.ride && i < G.tape.length-1) tape.append(el('span','tdiv'));
+    // and a flame divider wherever all six came back
+    rolled += x.dice || 0;
+    const s = Math.floor(rolled / 6);
+    if(s > sets && i < G.tape.length-1) tape.append(el('span','tdiv hot', '🔥'));
+    sets = s;
+  });
+
+  const gw = document.querySelector('.gridwrap');
+  const row = document.querySelector('tr.thisrow');
+  if(row) gw.scrollTop = Math.max(0, row.offsetTop - gw.clientHeight + row.offsetHeight + 4);
+
+  $('#game').classList.toggle('over', !!G.over);
+  paintSteps();
+  syncSuspense();   // the ride music follows the state, so undo and redo control it too
+}
+
+/* ---------- turn actions ---------- */
+$('#farkleBtn').onclick = () => {
+  if(G.over) return;
+  step();
+  const p = G.players[G.cur], wasRiding = !!G.riding;
+  p.turns.push(0); p.rode.push(wasRiding);
+  G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
+  G.table = null;                       // farkled dice are dead — nothing to ride
+  S.farkle(wasRiding);
+  toast(pick(SAY.farkle));
+  nextPlayer();
+};
+$('#bankBtn').onclick = () => {
+  if(G.over) return;
+  const p = G.players[G.cur], t = total(p);
+  if(G.pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
+  if(G.minOnBoard && t === 0 && G.pot < G.minOnBoard){
+    S.nope(); bump($('#bankBtn'));
+    toast(`GET ON THE BOARD, ${G.minOnBoard} 🚪`);
+    return;
+  }
+  doBank();
+};
+function doBank(){
+  const p = G.players[G.cur];
+  step();
+  const banked = G.pot, wasRiding = !!G.riding;
+  // how far into the current set of six they got — that's what the next player inherits
+  const spent = diceUsed() % 6;
+  p.turns.push(banked); p.rode.push(wasRiding);
+  G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
+  G.table = G.letRide ? {from:G.cur, pts:banked, spent} : null;   // banking always leaves something to ride
+  S.bank(banked, wasRiding);
+  toast(banked >= 1500 && Math.random() < .6 ? pick(SAY.big) : `+${banked} ${pick(SAY.bank)}`);
+  let call = null;
+  if(G.lastCaller === null && total(p) >= G.target){
+    G.lastCaller = G.cur;                       // first one over the line — everyone else gets a turn
+    call = 'first';
+  } else if(G.lastCaller !== null && G.cur !== G.lastCaller && total(p) > total(G.players[G.lastCaller])){
+    G.lastCaller = G.cur;                       // took the lead during the last round — everyone gets a shot at them
+    call = 'lead';
+  }
+  const caller = G.lastCaller;
+  nextPlayer();
+  if(call) setTimeout(()=> showLastCall(call, caller), 1100);
+}
+
+/* ---------- the ride offer, asked outright at the top of the turn ---------- */
+function rideAvailable(){
+  const tbl = G.table;
+  return !!tbl && !G.over && !G.riding && !G.tape.length && tbl.from !== G.cur && everyoneOnBoard();
+}
+function maybeOfferRide(){
+  if(!rideAvailable()) return;
+  const tbl = G.table;
+  $('#ridePot').textContent = fmt(tbl.pts);
+  $('#freshDice').innerHTML = [1,2,3,4,5,6].map(n => `<svg class="die"><use href="#die-${n}"/></svg>`).join('');
+  $('#rideOvl').classList.add('on');
+  S.offer();
+}
+$('#rideTake').onclick = () => {
+  const tbl = G.table;
+  if(!tbl || G.over) return;
+  $('#rideOvl').classList.remove('on');
+  step();
+  G.riding = true;
+  G.tense = true;                       // suspense music until they press something
+  G.pot += tbl.pts;
+  // carry over the dice the last player already used, so the leftovers still finish their set of six
+  G.tape.push({lab:`Rode ${G.players[tbl.from].name}'s turn`, pts:tbl.pts, dice:(tbl.spent||0),
+               icon:{emoji:'🎠'}, ride:true});
+  G.table = null;
+  S.ride();
+  toast(pick(['LET IT RIDE! 🎠','GREEDY! 😈','YOINK! 🤲','MINE NOW 😈']));
+  render(); save();
+};
+$('#rideNo').onclick = () => {
+  $('#rideOvl').classList.remove('on');
+  step(); S.tap(); G.table = null; render(); save();
+};
+
+/* ---------- last call: spell out what everyone is playing for ---------- */
+function showLastCall(kind, callerIdx){
+  if(!G || G.over) return;                       // a one-player game ends instead
+  const lead = G.players[callerIdx], lt = total(lead);
+  const first = kind === 'first';
+
+  $('#callIcon').textContent = first ? '🔔' : '👑';
+  $('#callTitle').textContent = first ? 'Last call!' : 'New leader!';
+  $('#callLead').innerHTML = first
+    ? `${lead.emoji} <b>${esc(lead.name)}</b> banked <b>${fmt(lt)}</b> and crossed ${fmt(G.target)}.`
+    : `${lead.emoji} <b>${esc(lead.name)}</b> stole the lead with <b>${fmt(lt)}</b>. The lap starts over.`;
+
+  const list = $('#callList'); list.innerHTML = '';
+  G.players.forEach((p,i)=>{
+    const t = total(p), me = i === callerIdx;
+    list.append(el('div','stand' + (me ? ' first':''),
+      `<span>${p.emoji} ${esc(p.name)} — ${fmt(t)}</span>` +
+      `<span>${me ? '👑 leading' : 'needs ' + fmt(lt + 50 - t)}</span>`));
+  });
+
+  $('#callRule').innerHTML =
+    `Everyone else gets <b>one turn</b> to take the lead. Take it and the lap starts over against you — ` +
+    `everybody gets a shot at your number. Go a <b>full round with nobody passing the leader</b> and the leader wins.`;
+
+  $('#callOvl').classList.add('on');
+  S.lastCall();
+}
+$('#callGo').onclick = () => { S.tap(); $('#callOvl').classList.remove('on'); };
+
+function nextPlayer(){
+  G.cur = (G.cur + 1) % G.players.length;
+  if(G.lastCaller !== null && G.cur === G.lastCaller){ endGame(); return; }
+  render(); save();
+  $('#pad').scrollTop = 0;   // the big 1 and 5 buttons greet the next player
+  setTimeout(()=> { if(!G.over) S.turn(); }, 750);
+  setTimeout(maybeOfferRide, 900);   // after the previous player's banking noise has landed
+}
+function bump(node){ node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); }
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg;
+  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+}
+
+/* ---------- undo / redo ---------- */
+$('#undoBtn').onclick = () => {
+  if(!past.length){ S.nope(); return; }
+  future.push(JSON.stringify(G));
+  applyState(past.pop());
+  S.undo();
+};
+$('#redoBtn').onclick = () => {
+  if(!future.length){ S.nope(); return; }
+  past.push(JSON.stringify(G));
+  applyState(future.pop());
+  S.redo();
+};
+
+/* ---------- end of game ---------- */
+function endGame(){
+  G.over = true;
+  $('#callOvl').classList.remove('on');
+  remember(G.players);
+  const ranked = G.players.map((p,i)=>({p, t:total(p), i})).sort((a,b)=> b.t - a.t);
+  const w = ranked[0];
+  $('#winName').textContent = `${w.p.emoji} ${w.p.name} wins!`;
+  $('#winSub').textContent = `${fmt(w.t)} points — everyone else can eat it 🍑`;
+  const st = $('#standings'); st.innerHTML = '';
+  ranked.forEach((r,idx)=>{
+    st.append(el('div','stand' + (idx===0 ? ' first':''),
+      `<span>${idx+1}. ${r.p.emoji} ${esc(r.p.name)}</span><span>${r.t}</span>`));
+  });
+  $('#winOvl').classList.add('on');
+  S.win();
+  confetti();
+  render(); save();
+}
+function confetti(){
+  const bits = ['🎲','🎉','⭐️','💰','🎊','👑','💩','🍑','💨'];
+  for(let i=0;i<40;i++){
+    const c = el('div','confetti', pick(bits));
+    c.style.left = Math.random()*100 + 'vw';
+    c.style.animationDuration = (1.8 + Math.random()*1.8) + 's';
+    c.style.animationDelay = (Math.random()*.9) + 's';
+    c.style.fontSize = (16 + Math.random()*22) + 'px';
+    document.body.append(c);
+    setTimeout(()=> c.remove(), 4200);
+  }
+}
+
+/* ---------- chrome ---------- */
+/* ---------- full screen (iPad Safari and desktop; iPhone Safari has no such thing) ---------- */
+const docEl = document.documentElement;
+const canFull = !!(docEl.requestFullscreen || docEl.webkitRequestFullscreen);
+const standalone = window.navigator.standalone === true ||
+                   (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+const inFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function paintFsBtn(){ $('#fsBtn').textContent = inFull() ? '⛗' : '⛶'; }
+if(canFull && !standalone){
+  $('#fsBtn').style.display = 'grid';
+  $('#fsBtn').onclick = () => {
+    S.tap();
+    if(inFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (docEl.requestFullscreen || docEl.webkitRequestFullscreen).call(docEl);
+  };
+  ['fullscreenchange','webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, paintFsBtn));
+}
+
+$('#soundBtn').onclick = () => {
+  soundOn = !soundOn;
+  $('#soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  if(soundOn) S.tap();
+  LS.set("farkler.sound", soundOn ? "1":"0");
+};
+$('#rulesBtn').onclick = () => { S.tap(); $('#rulesOvl').classList.add('on'); };
+$('#closeRules').onclick = () => { S.tap(); $('#rulesOvl').classList.remove('on'); };
+$('#menuBtn').onclick = () => { S.tap(); refreshDiag(); $('#menuOvl').classList.add('on'); };
+// tells you what address this copy is running from and whether it can survive the server sleeping
+function refreshDiag(){
+  const secure = window.isSecureContext;
+  const standalone = window.navigator.standalone === true ||
+                     (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+  let sw;
+  if(!('serviceWorker' in navigator)) sw = '<span class="warn">not supported here</span>';
+  else if(navigator.serviceWorker.controller) sw = '<span class="ok">saved ✓ works without the server</span>';
+  else if(secure) sw = '<span class="warn">not saved yet — reload this page once</span>';
+  else sw = '<span class="warn">needs a localhost address</span>';
+
+  $('#diag').innerHTML =
+    `<div><b>Address</b> ${esc(location.href)}</div>` +
+    `<div><b>Launched</b> ${standalone ? 'from the Home Screen' : 'in the browser'}</div>` +
+    `<div><b>Offline copy</b> ${sw}</div>` +
+    (secure ? '' : `<div class="warn">Open this as <b>http://localhost:PORT/</b> — an IP address can't save an offline copy.</div>`);
+}
+$('#resumeBtn').onclick = () => { S.tap(); $('#menuOvl').classList.remove('on'); };
+$('#newGameBtn').onclick = () => {
+  $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
+  startGame(G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color})),
+            {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide});
+};
+$('#quitBtn').onclick = () => {
+  $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
+  remember(G.players);
+  lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color}));
+  renderPlayers(); show('setup');
+  LS.del(SAVE);
+  G = null;
+};
+$('#againBtn').onclick = $('#newGameBtn').onclick;
+$('#closeWin').onclick = () => { S.tap(); $('#winOvl').classList.remove('on'); };
+// the two ways out of a finished game, from the bar under the final scoresheet
+$('#againSame').onclick = $('#newGameBtn').onclick;
+$('#againNew').onclick  = $('#quitBtn').onclick;
+// tapping the backdrop closes a sheet — except the ride offer, which wants an actual answer
+document.querySelectorAll('.ovl').forEach(o => {
+  if(o.id === 'rideOvl') return;
+  o.onclick = e => { if(e.target === o) o.classList.remove('on'); };
+});
+
+/* ---------- persistence ---------- */
+function save(){ LS.set(SAVE, JSON.stringify(G)); }
+function load(){
+  try{
+    const g = JSON.parse(LS.get(SAVE));
+    if(!g || !g.players || !g.players.length) return false;
+    // a game saved before let-it-ride existed: fill in the new fields, don't leave the feature switched off
+    g.players.forEach(p => { if(!p.rode) p.rode = p.turns.map(()=>false); });
+    if(g.letRide === undefined) g.letRide = true;
+    if(g.table === undefined) g.table = null;
+    G = g; past = []; future = [];
+    show('game'); buildPad(); render();
+    if(G.over) $('#winOvl').classList.add('on');
+    else setTimeout(maybeOfferRide, 400);       // resumed mid-offer
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- boot ---------- */
+soundOn = LS.get("farkler.sound") !== "0";
+$('#soundBtn').textContent = soundOn ? '🔊' : '🔇';
+document.body.insertAdjacentHTML('afterbegin', diceSprite());
+loadRoster();
+loadRules();
+// start with the last crew if we know one, otherwise two blank seats
+lineup = roster.slice(-2).map(r=>({name:r.name, emoji:r.emoji, color:r.color}));
+while(lineup.length < 2) lineup.push(newPlayer());
+renderPlayers();
+if(!load()) show('setup');
+document.addEventListener('pointerdown', function unlock(){ ctx(); }, {once:true});
+
+/* Served from localhost (or https)? Cache the app so the Home Screen icon still works
+   when the iPad's little server app has gone to sleep. Silently skipped over plain http. */
+if('serviceWorker' in navigator && window.isSecureContext){
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
