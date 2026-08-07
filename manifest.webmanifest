@@ -2,7 +2,7 @@
   "name": "Farkler",
   "short_name": "Farkler",
   "description": "Farkle scorekeeper",
-  "start_url": "./",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
