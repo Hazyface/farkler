@@ -415,6 +415,7 @@
   .field input{font-size:19px;padding:11px 13px;border-radius:13px;border:2px solid var(--line);
                background:#16211d;color:var(--text);width:100%}
   .field input:focus{outline:none;border-color:var(--gold)}
+  .fhint{font-size:12px;line-height:1.45;color:var(--muted);margin-top:2px}
   .rulelist{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px;text-align:left}
   .rulerow{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:7px 9px;margin-bottom:6px}
   .rulerow .rn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
@@ -630,12 +631,15 @@
       <input id="ruleName" maxlength="18" placeholder="Snake eyes, Bus stop…">
     </div>
     <div class="field">
-      <label for="rulePts">Worth</label>
+      <label for="rulePts">Points</label>
       <input id="rulePts" type="number" step="50" placeholder="250">
     </div>
     <div class="field">
-      <label for="ruleDice">Dice it uses (for hot dice)</label>
+      <label for="ruleDice">How many dice does it use?</label>
       <input id="ruleDice" type="number" min="0" max="6" step="1" placeholder="0">
+      <div class="fhint">How many dice this combo takes off the table, so the app knows when all six
+        are gone and it's hot dice. Three of something uses 3, a straight uses 6. Leave it 0 for a rule
+        that isn't a roll, like a penalty.</div>
     </div>
     <button class="btn wide" id="ruleSave" style="margin-top:14px;background:var(--green);color:#082214">💾 Save &amp; score it</button>
     <button class="btn ghost wide" id="ruleOnce" style="margin-top:9px">Just this once</button>
@@ -1341,6 +1345,12 @@ function buildPad(){
   custom.onclick = openRuleSheet;
   gs.append(custom);
   right.append(gs);
+
+  // weight each section by how many rows of buttons it holds, so every button ends up the same
+  // height rather than a one-row section stretching to match a two-row one (wide layout only)
+  const rowsOf = n => Math.ceil(n / 3);
+  right.style.gridTemplateRows =
+    `auto ${rowsOf(TRIPLES.length)}fr auto ${rowsOf(KINDS.length)}fr auto ${rowsOf(gs.children.length)}fr`;
 
   pad.append(right);
 }
