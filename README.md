@@ -50,8 +50,12 @@ between games; benched players are one tap from rejoining.
 | --- | --- |
 | `index.html` | The entire game — markup, styles, logic, and synthesized sound |
 | `sw.js` | Service worker, for offline launches from the Home Screen |
-| `manifest.webmanifest` | Web app manifest (name, icon, standalone display) |
 | `icon-180.png` | Home Screen icon |
+
+There is deliberately no web app manifest. On iOS a manifest's `start_url` overrides the page you
+were viewing when you tapped Add to Home Screen, which is an easy way to end up with an icon that
+opens a URL nothing serves. Without one, iOS bookmarks exactly the page you were on and takes the
+standalone/title/icon settings from the `apple-*` meta tags.
 
 ## Notes
 

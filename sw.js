@@ -1,10 +1,11 @@
-/* Keeps Farkler playable from the Home Screen even when the little server app on the iPad
-   has been suspended. Cache-first: the game is one static file and never phones home. */
-const CACHE = 'farkler-v3';
-const FILES = ['index.html', 'manifest.webmanifest', 'icon-180.png'];
+/* Keeps Farkler playable when the server it came from isn't answering.
+   Rule number one in here: every path must return a real Response. Handing respondWith()
+   an undefined kills the navigation and paints a blank white page, which is exactly the
+   bug this file used to have. */
+const CACHE = 'farkler-v4';
+const FILES = ['index.html', 'icon-180.png'];
 
-// Cache each file on its own: addAll() rejects the whole install if any single request fails,
-// and some little server apps 404 on things like a bare directory path.
+// One at a time: addAll() rejects the whole install if any single request fails.
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE)
@@ -21,27 +22,50 @@ self.addEventListener('activate', e => {
   );
 });
 
-self.addEventListener('fetch', e => {
-  if(e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, {ignoreSearch:true}).then(hit => {
-      if(hit){
-        // refresh the copy in the background so edits on the Mac land next launch
-        fetch(e.request).then(r => {
-          if(r && r.ok) caches.open(CACHE).then(c => c.put(e.request, r.clone()));
-        }).catch(()=>{});
-        return hit;
-      }
-      const isPage = e.request.mode === 'navigate';
-      return fetch(e.request).then(r => {
-        // a 404 is just as fatal as no server at all — for a page request, fall back to the app
-        if(isPage && (!r || !r.ok)) return caches.match('index.html').then(f => f || r);
-        if(r && r.ok && new URL(e.request.url).origin === location.origin){
-          const copy = r.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
-        }
-        return r;
-      }).catch(() => caches.match('index.html'));
-    })
+// last resort, so a failure is always legible instead of blank
+function sos(){
+  return new Response(
+    '<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<body style="margin:0;padding:28px;background:#0a1210;color:#eaf2ee;' +
+    'font:16px/1.5 -apple-system,system-ui,sans-serif">' +
+    '<h2 style="color:#ffcb47;margin:0 0 10px">Farkler couldn\'t load</h2>' +
+    '<p>No saved copy on this device and nothing answering at this address.</p>' +
+    '<p>Start the server app, then pull down to reload. Once it loads here once, ' +
+    'it will keep working on its own.</p></body>',
+    {headers:{'Content-Type':'text/html;charset=utf-8'}, status:200}
   );
+}
+
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  if(req.method !== 'GET') return;
+  if(new URL(req.url).origin !== location.origin) return;   // leave anything external alone
+
+  const isPage = req.mode === 'navigate';
+
+  e.respondWith((async () => {
+    const hit = await caches.match(req, {ignoreSearch:true});
+    if(hit){
+      // freshen it quietly for next launch
+      fetch(req).then(r => {
+        if(r && r.ok) caches.open(CACHE).then(c => c.put(req, r.clone()));
+      }).catch(()=>{});
+      return hit;
+    }
+
+    try{
+      const net = await fetch(req);
+      if(net && net.ok){
+        const copy = net.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(()=>{});
+        return net;
+      }
+      // a 404 is as fatal as no server — for a page, hand back the app instead
+      if(isPage) return (await caches.match('index.html')) || net || sos();
+      return net || sos();
+    }catch(err){
+      if(isPage) return (await caches.match('index.html')) || sos();
+      return sos();
+    }
+  })());
 });
