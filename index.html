@@ -41,7 +41,10 @@
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
   }
   input{-webkit-user-select:text;user-select:text}
-  html,body{height:100%}
+  /* the canvas behind the page — without this, the strip under the home indicator
+     in a full-screen web app is painted white */
+  html{height:100%;background:#0a1210}
+  body{height:100%}
   body{
     margin:0;
     font-family:var(--font);
@@ -1104,10 +1107,18 @@ const SPECIALS = [
    STATE
    ======================================================================= */
 const COLORS = ['#e23c3c','#3aa0d8','#8a63d2','#e08a1e','#1d8a4c','#d4409a','#00a3a3','#7b5e3b'];
-const EMOJI  = ['🐙','🦊','🐸','🦄','🐝','🦁','🐼','🐧'];
-const PICKABLE = ['🐙','🦊','🐸','🦄','🐝','🦁','🐼','🐧','🐨','🐵','🦖','🦑','🐢','🦩','🐰','🐺','🦉','🐴',
-                  '🐷','🦨','🦡','🐊','🦈','🐌','🦞','🐲','🐔','🦆','👻','💀','👽','🤖','🤡','😈','👑','🍕',
-                  '🌮','🍩','🍑','🍺','🥃','🚀','⚡️','🔥','💩','🎃','🥷','🦸','🧙','🍄','🌵','🎩','🕶️','🏴‍☠️'];
+const EMOJI  = ['🐙','🐱','🦊','🐸','🐶','🦄','🐝','🐼'];
+const PICKABLE = [
+  // cats, obviously
+  '🐱','🐈','🐈‍⬛','🐯','🦁','🐆','🐅',
+  // and everyone else
+  '🐶','🐕','🐺','🦝','🐻','🐻‍❄️','🐨','🐼','🐵','🦍','🦧','🐷','🐮','🐴','🦄','🦓','🦒','🐘',
+  '🐰','🐹','🐭','🐿️','🦔','🦇','🦥','🦦','🦨','🦡','🐸','🐢','🐊','🦖','🐲','🐍',
+  '🐙','🦑','🦈','🐬','🐳','🦭','🦞','🦀','🐌','🦋','🐝','🐧','🦉','🦆','🦩','🦚','🦜','🐔',
+  // not animals
+  '👻','💀','👽','🤖','🤡','😈','👑','🥷','🦸','🧙','🎩','🕶️','🏴‍☠️',
+  '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
+];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules';
 
 let G = null;          // live game

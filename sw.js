@@ -2,7 +2,7 @@
    Rule number one in here: every path must return a real Response. Handing respondWith()
    an undefined kills the navigation and paints a blank white page, which is exactly the
    bug this file used to have. */
-const CACHE = 'farkler-v4';
+const CACHE = 'farkler-v5';
 const FILES = ['index.html', 'icon-180.png'];
 
 // One at a time: addAll() rejects the whole install if any single request fails.
