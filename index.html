@@ -372,7 +372,7 @@
   .act.bank small{display:block;font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:0;opacity:.75}
   /* game over: the scoresheet takes the whole page and the pad gets out of the way */
   .endactions{display:none}
-  .over .pad,.over .tape,.over .banner,.over .actions{display:none}
+  .over .pad,.over .felt,.over .tape,.over .banner,.over .actions{display:none}
   .over .endactions{display:grid}
   .over .gridwrap{flex:1 1 auto;max-height:none}
   .act.again{background:linear-gradient(#4ee08d,#159154);color:#082214}
@@ -432,6 +432,107 @@
   .diag .warn{color:#ff9d6e}
   .confetti{position:fixed;top:-20px;font-size:22px;z-index:59;pointer-events:none;animation:fall linear forwards}
   @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+
+  /* ---------------- VIRTUAL DICE: the felt board ---------------- */
+  .felt{display:none;flex:1 1 auto;min-height:0;padding:8px 10px 10px;flex-direction:column}
+  .virtual .felt{display:flex}
+  .virtual .pad{display:none}
+  /* the board wants the room, so the scoresheet and the tally give some back */
+  .virtual .gridwrap{max-height:24vh}
+  .virtual .tape{max-height:14vh;min-height:32px}
+  .virtual .tape:empty::after{content:"what you set aside lands here"}
+  /* …and give it all back at the end. These have to sit after the .virtual rules above,
+     which are as specific as the .over ones and would otherwise win on source order. */
+  .over .felt{display:none}
+  .over .gridwrap{max-height:none}
+
+  .surface{
+    position:relative;flex:1 1 auto;min-height:120px;border-radius:18px;overflow:hidden;
+    background:radial-gradient(ellipse at 50% 36%, #c22a31 0%, #9d1a22 44%, #6d1017 76%, #430910 100%);
+    border:2px solid #250a0d;
+    box-shadow:inset 0 0 44px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.07), 0 5px 0 var(--drop);
+  }
+  /* the nap of the felt — two grids of specks, one lit, one shadowed */
+  .surface::before{
+    content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.09) .6px, transparent 0),
+                     radial-gradient(circle at 3px 4px, rgba(0,0,0,.20) .6px, transparent 0);
+    background-size:4px 4px, 7px 7px;
+  }
+  /* the stitched edge of a real table */
+  .surface::after{
+    content:"";position:absolute;inset:7px;border:2px dashed rgba(255,214,150,.18);
+    border-radius:12px;pointer-events:none;
+  }
+  .surface.farkled{animation:feltbad .8s ease}
+  @keyframes feltbad{
+    0%,100%{box-shadow:inset 0 0 44px rgba(0,0,0,.6), 0 5px 0 var(--drop)}
+    35%{box-shadow:inset 0 0 100px rgba(255,40,30,.9), 0 5px 0 var(--drop)}
+  }
+
+  .dielayer,.flylayer{position:absolute;inset:0}
+  .flylayer{pointer-events:none;z-index:6}
+  .vdie{position:absolute;left:0;top:0;will-change:transform;
+        filter:drop-shadow(0 7px 8px rgba(0,0,0,.55));transition:filter .18s}
+  .vdie svg{width:100%;height:100%;display:block}
+  .vdie .ring{position:absolute;inset:-7%;border-radius:28%;border:3px solid transparent;
+              pointer-events:none;transition:border-color .12s, box-shadow .12s}
+  .vdie.sel{filter:drop-shadow(0 12px 12px rgba(0,0,0,.6))}
+  .vdie.sel .ring{border-color:var(--gold);box-shadow:0 0 18px rgba(255,203,71,.85)}
+  /* dead dice — nothing you can do with them, so they sink into the felt */
+  .vdie.dead{filter:grayscale(.6) brightness(.62) drop-shadow(0 4px 5px rgba(0,0,0,.5))}
+  /* the flash after the roll: here's the biggest thing on the table */
+  .vdie.best .ring{animation:bestpulse .85s ease-in-out infinite}
+  @keyframes bestpulse{
+    0%,100%{border-color:rgba(120,255,180,0);box-shadow:0 0 0 rgba(80,255,160,0)}
+    50%{border-color:rgba(130,255,190,.95);box-shadow:0 0 20px rgba(70,255,160,.75)}
+  }
+  .vdie.nope .ring{border-color:#ff5a4a;box-shadow:0 0 16px rgba(255,80,60,.8)}
+  .vdie.fly{transition:transform .5s cubic-bezier(.35,0,.85,.4), opacity .5s ease}
+  @media (prefers-reduced-motion:reduce){ .vdie.best .ring{animation:none;border-color:rgba(130,255,190,.9)} }
+
+  .cup{position:absolute;left:50%;bottom:15%;width:clamp(64px,21%,112px);padding:0;background:none;
+       transform:translateX(-50%);transform-origin:50% 88%;z-index:3;
+       filter:drop-shadow(0 12px 16px rgba(0,0,0,.65));transition:opacity .3s, transform .3s}
+  .cup svg{width:100%;height:auto;display:block}
+  .cup.hide{opacity:0;pointer-events:none;transform:translateX(-50%) scale(.6)}
+  .cup.shake{animation:cupshake .42s ease}
+  @keyframes cupshake{
+    0%{transform:translateX(-50%) rotate(0)}
+    14%{transform:translateX(-58%) rotate(-15deg)}
+    30%{transform:translateX(-42%) rotate(14deg)}
+    46%{transform:translateX(-56%) rotate(-11deg)}
+    62%{transform:translateX(-46%) rotate(9deg)}
+    82%{transform:translateX(-50%) rotate(62deg)}
+    100%{transform:translateX(-50%) rotate(38deg)}
+  }
+  @media (prefers-reduced-motion:reduce){ .cup.shake{animation:none} }
+
+  /* the one line of text under the board: what you've got, or what's the best on offer.
+     It sits outside the felt so it can never cover a die you need to tap. */
+  .vread{flex:0 0 auto;align-self:center;margin-top:7px;max-width:100%;
+         background:var(--card-2);border:1px solid var(--line);border-radius:99px;
+         padding:6px 15px;font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;
+         overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 0 var(--drop);
+         transition:transform .06s, box-shadow .06s}
+  .vread b{color:var(--green)}
+  .vread.tapme{cursor:pointer;border-color:rgba(255,203,71,.65);color:var(--gold)}
+  .vread.tapme:active{transform:translateY(2px);box-shadow:0 0 0 var(--drop)}
+  .vread.bad{color:#ffb9b2;border-color:rgba(255,90,80,.55)}
+  .vread.bad b{color:#ffb9b2}
+
+  .vchips{position:absolute;top:8px;right:8px;z-index:4;display:flex;gap:6px}
+  .vchip{width:34px;height:34px;border-radius:11px;background:rgba(12,6,7,.5);color:#fff;font-size:16px;
+         border:1px solid rgba(255,255,255,.2);display:grid;place-items:center;
+         -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+  .vchip:active{transform:translateY(2px)}
+
+  #rollBtn{display:none}
+  .virtual #rollBtn{display:block}
+  .virtual #farkleBtn{display:none}
+  .act:disabled{opacity:.34}
+  .act.roll{background:linear-gradient(#8fd0ff,#2a71c8);color:#04222f}
+  .act.roll small{display:block;font-family:var(--font);font-size:12px;font-weight:700;letter-spacing:0;opacity:.8}
 </style>
 </head>
 <body>
@@ -465,6 +566,12 @@
       <label for="letride">🎠 Let it ride (roll with greed)</label>
       <div class="switch on" id="letride" role="switch" aria-checked="true" tabindex="0"></div>
     </div>
+    <div class="opt">
+      <label for="virtual">🎲 Virtual dice (roll in the app)</label>
+      <div class="switch" id="virtual" role="switch" aria-checked="false" tabindex="0"></div>
+    </div>
+    <div class="hint">Off, you roll real dice and tap what you got. On, you get a felt board and a cup —
+      shake it out, tap the dice you're keeping, and the app does the scoring.</div>
     <div class="hint">Once someone passes the target, everybody else gets one last turn to beat them — and if
       somebody takes the lead, the lap starts over against them. Tap a player's icon to change it, or the arrows
       to change the turn order.</div>
@@ -505,8 +612,43 @@
 
   <div class="pad" id="pad"></div>
 
+  <!-- ---- the felt board, when you're rolling in the app ---- -->
+  <div class="felt" id="felt">
+    <div class="surface" id="surface">
+      <div class="vchips">
+        <button class="vchip" id="comboBtn" title="Scoring combinations">❓</button>
+        <button class="vchip" id="houseBtn" title="House rule">🏠</button>
+      </div>
+      <div class="dielayer" id="dielayer"></div>
+      <div class="flylayer" id="flylayer"></div>
+      <button class="cup" id="cup" title="Shake and roll">
+        <svg viewBox="0 0 110 132" aria-hidden="true">
+          <defs>
+            <linearGradient id="cupSide" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#040405"/><stop offset=".2" stop-color="#35353d"/>
+              <stop offset=".44" stop-color="#191920"/><stop offset=".74" stop-color="#2c2c34"/>
+              <stop offset="1" stop-color="#040405"/>
+            </linearGradient>
+            <linearGradient id="cupIn" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#2a1015"/>
+            </linearGradient>
+          </defs>
+          <path d="M13 18 L97 18 L83 120 Q55 130 27 120 Z" fill="url(#cupSide)"/>
+          <path d="M18 58 L92 58" stroke="rgba(255,255,255,.09)" stroke-width="3"/>
+          <path d="M20 76 L90 76" stroke="rgba(0,0,0,.6)" stroke-width="5"/>
+          <path d="M20 82 L90 82" stroke="rgba(255,255,255,.07)" stroke-width="2"/>
+          <ellipse cx="55" cy="18" rx="42" ry="11" fill="url(#cupIn)"/>
+          <ellipse cx="55" cy="18" rx="42" ry="11" fill="none" stroke="#4e4e58" stroke-width="3"/>
+          <ellipse cx="55" cy="16" rx="42" ry="11" fill="none" stroke="rgba(255,255,255,.24)" stroke-width="1.5"/>
+        </svg>
+      </button>
+    </div>
+    <div class="vread" id="vread"></div>
+  </div>
+
   <div class="actions">
     <button class="act farkle" id="farkleBtn">FARKLE! 💀</button>
+    <button class="act roll" id="rollBtn">ROLL 🎲</button>
     <button class="act bank" id="bankBtn">BANK IT 🏦<small id="bankSub"></small></button>
   </div>
 
@@ -561,6 +703,16 @@
             column shows exactly what that player needs.</li>
         <li>Pass the leader and the lap resets around <em>you</em> — everyone gets a shot at your new number.</li>
         <li>Go a full lap with nobody passing the leader and the leader wins.</li>
+      </ul>
+      <h3>🎲 Virtual dice</h3>
+      <ul>
+        <li>Shake the cup to spill six onto the felt. Dice you can't use anything for go grey.</li>
+        <li>Tap the ones you're keeping — the bar underneath adds them up as you go, and it
+            won't let you set aside a die that doesn't score.</li>
+        <li>Right after a roll the biggest combo on the table glows. Tap the bar to take it.</li>
+        <li><b>Set &amp; roll</b> banks those dice into your pot and throws the rest. Set all six
+            and you get hot dice with a fresh six.</li>
+        <li>Roll nothing at all and the app calls the farkle for you.</li>
       </ul>
       <h3>🎠 Let it ride (roll with greed)</h3>
       <ul>
@@ -954,6 +1106,25 @@ function rideCheer(){
   for(let i=0;i<12;i++) noise(.3+Math.random()*.3, .04, Math.random()*.22, 900+Math.random()*1800, 'bandpass');
   [880,1175,1568].forEach((f,i)=> tone({freq:f, dur:.22, delay:i*.06, type:'triangle', vol:.13}));
 }
+/* ---- virtual dice: wood, felt and plastic ---- */
+// dice knocking around inside the cup before they come out
+function shakeCup(){
+  noise(.34, .10, 0, 620, 'lowpass');
+  for(let i=0;i<8;i++) noise(.04, .06, Math.random()*.34, 900+Math.random()*1700, 'bandpass');
+}
+// the spill: a scatter of clicks that thins out as they come to rest
+function clatter(n){
+  for(let i=0;i<n*5;i++){
+    const t = Math.pow(Math.random(), 1.6) * .8;
+    noise(.045, .07*(1-t*.7), t, 1000+Math.random()*2400, 'bandpass');
+  }
+  tone({freq:R(58,86), dur:.28, type:'sine', vol:.07});
+}
+// one die hitting a rail or another die
+function clack(){
+  noise(.035, .055, 0, 1100 + Math.random()*2100, 'bandpass');
+}
+
 /* ---- the crowd ---- */
 function cheer(d){
   d = d||0;
@@ -1119,7 +1290,7 @@ const PICKABLE = [
   '👻','💀','👽','🤖','🤡','😈','👑','🥷','🦸','🧙','🎩','🕶️','🏴‍☠️',
   '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
 ];
-const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules';
+const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -1262,13 +1433,15 @@ function wireSwitch(id, onChange){
 }
 wireSwitch('onboard');
 wireSwitch('letride');
+wireSwitch('virtual', on => LS.set(VDICE, on ? '1' : '0'));
 $('#start').onclick = () => {
   lineup.forEach((p,i)=>{ p.name = (p.name||'').trim() || 'Player '+(i+1); });
   remember(lineup);
   startGame(lineup, {
     target: Math.max(500, parseInt($('#target').value)||10000),
     minOnBoard: $('#onboard').classList.contains('on') ? 500 : 0,
-    letRide: $('#letride').classList.contains('on')
+    letRide: $('#letride').classList.contains('on'),
+    virtual: $('#virtual').classList.contains('on')
   });
 };
 
@@ -1277,12 +1450,15 @@ function startGame(list, opts){
   G = {
     players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji, turns:[], rode:[]})),
     target: opts.target, minOnBoard: opts.minOnBoard, letRide: opts.letRide,
+    virtual: !!opts.virtual,
+    vr: {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]},   // what's lying on the felt
     cur:0, pot:0, tape:[], lastCaller:null, over:false,
     table:null,      // what the last banker left behind: {from, pts, dice}
     riding:false,    // this turn was picked up from the table
     tense:false      // ...and the suspense music is still holding
   };
   past = []; future = [];
+  vAbort();
   $('#winOvl').classList.remove('on');
   $('#callOvl').classList.remove('on');
   $('#rideOvl').classList.remove('on');
@@ -1310,6 +1486,7 @@ function step(){
   paintSteps();
 }
 function applyState(json){
+  vAbort();                     // a throw still in the air belongs to the state we just left
   G = JSON.parse(json);
   G.tense = false;              // you pressed a key to get here, so the music stays off
   $('#callOvl').classList.remove('on');
@@ -1423,10 +1600,10 @@ $('#ruleOnce').onclick = () => {
 $('#ruleClose').onclick = () => { S.tap(); $('#ruleOvl').classList.remove('on'); };
 function diceUsed(){ return G.tape.reduce((a,x)=> a + (x.dice||0), 0); }
 
-function addScore(lab, pts, icon, id, dice){
+function addScore(lab, pts, icon, id, dice, quiet){
   if(G.over) return;
   breakTense(true);
-  step();
+  if(!quiet) step();          // the felt board records one step for a whole handful
   const setsBefore = Math.floor(diceUsed() / 6);
   G.tape.push({lab, pts, dice: dice||0, icon: icon || {emoji:'🎲'}});
   G.pot += pts;
@@ -1522,8 +1699,13 @@ function render(){
     const tag = el('button','tag' + (x.ride ? ' rode' : ''),
       `<span class="tf">${iconHTML(x.icon || x.face)}</span>` +
       `<span class="tp${x.pts<0?' neg':''}">${x.pts>0?'+':''}${x.pts}</span>`);
-    tag.title = x.lab + ' — tap to remove';
-    tag.onclick = () => { step(); S.undo(); G.pot -= x.pts; G.tape.splice(i,1); render(); save(); };
+    // on the felt board the tally is a record, not an input — pulling a combo back out would
+    // hand the dice it used back to the table. Undo is the way out of a misclick there.
+    if(G.virtual) tag.title = x.lab;
+    else {
+      tag.title = x.lab + ' — tap to remove';
+      tag.onclick = () => { step(); S.undo(); G.pot -= x.pts; G.tape.splice(i,1); render(); save(); };
+    }
     tape.append(tag);
     // everything after the inherited pot is what this player rolled themselves
     if(x.ride && i < G.tape.length-1) tape.append(el('span','tdiv'));
@@ -1539,24 +1721,30 @@ function render(){
   if(row) gw.scrollTop = Math.max(0, row.offsetTop - gw.clientHeight + row.offsetHeight + 4);
 
   $('#game').classList.toggle('over', !!G.over);
+  $('#bankBtn').disabled = false;   // only the felt board ever locks it, and it re-decides below
   paintSteps();
   syncSuspense();   // the ride music follows the state, so undo and redo control it too
+  vSync();          // …and so does the felt board
 }
 
 /* ---------- turn actions ---------- */
-$('#farkleBtn').onclick = () => {
+function doFarkle(){
   if(G.over) return;
   step();
   const p = G.players[G.cur], wasRiding = !!G.riding;
   p.turns.push(0); p.rode.push(wasRiding);
   G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
   G.table = null;                       // farkled dice are dead — nothing to ride
+  vClear();
   S.farkle(wasRiding);
   toast(pick(SAY.farkle));
   nextPlayer();
-};
+}
+$('#farkleBtn').onclick = doFarkle;
 $('#bankBtn').onclick = () => {
   if(G.over) return;
+  // whatever's still lit up on the felt counts — bank means bank
+  if(vOn() && V.dice.some(d => d.sel) && !vCommit()) return;
   const p = G.players[G.cur], t = total(p);
   if(G.pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
   if(G.minOnBoard && t === 0 && G.pot < G.minOnBoard){
@@ -1575,6 +1763,7 @@ function doBank(){
   p.turns.push(banked); p.rode.push(wasRiding);
   G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
   G.table = G.letRide ? {from:G.cur, pts:banked, spent} : null;   // banking always leaves something to ride
+  vClear();
   S.bank(banked, wasRiding);
   toast(banked >= 1500 && Math.random() < .6 ? pick(SAY.big) : `+${banked} ${pick(SAY.bank)}`);
   let call = null;
@@ -1713,6 +1902,409 @@ function confetti(){
   }
 }
 
+/* =======================================================================
+   VIRTUAL DICE — working out what a handful of dice is worth
+   ======================================================================= */
+const ICO = {};
+SINGLES.concat(TRIPLES, KINDS, SPECIALS).forEach(s => ICO[s.id] = s.icon);
+const countsOf = vals => { const c=[0,0,0,0,0,0,0]; vals.forEach(v=>c[v]++); return c; };
+
+/* The best way to score a set of dice where *every* die has to be used — null if one of
+   them is dead weight. Small enough (six dice) that brute force with a memo is instant. */
+const decMemo = new Map();
+function decompose(c){
+  const key = c.join('');
+  if(decMemo.has(key)) return decMemo.get(key);
+  const n = c.reduce((a,b)=>a+b,0);
+  let best = n === 0 ? {pts:0, parts:[]} : null;
+  const take = (dice, pts, id, lab, icon) => {
+    const c2 = c.slice();
+    dice.forEach(v => c2[v]--);
+    const rest = decompose(c2);
+    if(!rest) return;
+    const tot = pts + rest.pts;
+    if(!best || tot > best.pts)
+      best = {pts:tot, parts:[{id, lab, pts, dice:dice.slice(), icon}].concat(rest.parts)};
+  };
+  if(n === 6){                                   // the combos that eat all six at once
+    const ones   = [1,2,3,4,5,6].filter(v=>c[v]===1),
+          pairs  = [1,2,3,4,5,6].filter(v=>c[v]===2),
+          trips  = [1,2,3,4,5,6].filter(v=>c[v]===3),
+          quads  = [1,2,3,4,5,6].filter(v=>c[v]===4);
+    if(ones.length === 6)  take([1,2,3,4,5,6], 1500, 'straight', 'Straight 1-6', ICO.straight);
+    if(pairs.length === 3) take(pairs.reduce((a,v)=>a.concat([v,v]),[]), 1500, 'pairs', 'Three pairs', ICO.pairs);
+    if(trips.length === 2) take(trips.reduce((a,v)=>a.concat([v,v,v]),[]), 2500, 'triplets', 'Two triplets', ICO.triplets);
+    if(quads.length === 1 && pairs.length === 1)
+      take([quads[0],quads[0],quads[0],quads[0],pairs[0],pairs[0]], 1500, 'fourpair', '4 of a kind + pair', ICO.fourpair);
+  }
+  for(let v=1; v<=6; v++){
+    if(c[v]>=6) take([v,v,v,v,v,v], 3000, 'k6', 'Six '+v+"'s", {die:v, mult:6});
+    if(c[v]>=5) take([v,v,v,v,v],   2000, 'k5', 'Five '+v+"'s", {die:v, mult:5});
+    if(c[v]>=4) take([v,v,v,v],     1000, 'k4', 'Four '+v+"'s", {die:v, mult:4});
+    if(c[v]>=3) take([v,v,v], (v===1?1000:v*100), 't'+v, 'Three '+v+"'s", {die:v, mult:3});
+  }
+  if(c[1]) take([1], 100, 'one',  'Single 1', {die:1});
+  if(c[5]) take([5],  50, 'five', 'Single 5', {die:5});
+  decMemo.set(key, best);
+  return best;
+}
+/* Every subset of what's on the table: the fattest one, and which dice are worth anything
+   at all. Sixty-four subsets at most, so this runs the moment the dice stop. */
+function survey(vals){
+  const n = vals.length, live = [];
+  let best = {pts:0, idx:[], parts:[]};
+  for(let m=1; m<(1<<n); m++){
+    const idx=[], c=[0,0,0,0,0,0,0];
+    for(let i=0;i<n;i++) if(m & (1<<i)){ idx.push(i); c[vals[i]]++; }
+    const d = decompose(c);
+    if(!d) continue;
+    idx.forEach(i => { if(!live.includes(i)) live.push(i); });
+    // same points for fewer dice is strictly better — it leaves more to throw again
+    if(d.pts > best.pts || (d.pts === best.pts && d.pts > 0 && idx.length < best.idx.length))
+      best = {pts:d.pts, idx, parts:d.parts};
+  }
+  return {best, live};
+}
+
+/* =======================================================================
+   VIRTUAL DICE — the felt board
+   ======================================================================= */
+const V = {dice:[], raf:0, lock:false, tick:0, lastClack:0, gen:0};
+/* Undo, a new game or quitting can land mid-throw. Everything the board schedules carries a
+   generation stamp, so anything that outlives its state quietly gives up. */
+function vAbort(){
+  V.gen++;
+  V.lock = false;
+  if(V.raf){ cancelAnimationFrame(V.raf); V.raf = 0; }
+  const fly = document.querySelector('#flylayer'); if(fly) fly.innerHTML = '';
+}
+const easy = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+const vOn   = () => !!(G && G.virtual);
+const vBox  = () => { const s = $('#surface'); return {w:s.clientWidth||320, h:s.clientHeight||220}; };
+const vSize = () => { const b = vBox(); return Math.max(28, Math.min(70, Math.min(b.w*.155, b.h*.235))); };
+function vClear(){ if(G) G.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]}; }
+function vNode(){
+  return el('div','vdie','<svg viewBox="0 0 100 100"><use href="#die-1"/></svg><span class="ring"></span>');
+}
+function vClack(){
+  const now = performance.now();
+  if(now - V.lastClack < 42) return;
+  V.lastClack = now;
+  clack();
+}
+/* px positions are throwaway; what gets saved is 0–1 across the felt, so the board
+   comes back the same after an undo or a rotation */
+function vNorm(d){
+  const b = vBox(), pad = vSize()*.62, w = Math.max(1, b.w-2*pad), h = Math.max(1, b.h-2*pad);
+  const cl = x => Math.max(0, Math.min(1, x));
+  return [cl((d.x-pad)/w), cl((d.y-pad)/h), d.rot % 360];
+}
+function vDenorm(p){
+  const b = vBox(), pad = vSize()*.62;
+  return {x: pad + p[0]*(b.w-2*pad), y: pad + p[1]*(b.h-2*pad)};
+}
+function vPaint(){
+  const S = vSize();
+  V.dice.forEach(d=>{
+    const n = d.node;
+    n.style.width = n.style.height = S + 'px';
+    n.style.transform = `translate(${(d.x-S/2).toFixed(1)}px,${(d.y-S/2).toFixed(1)}px)` +
+                        ` rotate(${d.rot.toFixed(1)}deg) scale(${d.sel ? 1.15 : 1})`;
+    if(n._face !== d.face){ n._face = d.face; n.querySelector('use').setAttribute('href', '#die-'+d.face); }
+  });
+}
+/* rebuild the board from the saved state — undo, redo, resume and resize all land here */
+function vSync(){
+  $('#game').classList.toggle('virtual', vOn());
+  if(!vOn() || V.raf || V.lock) return;
+  const vr = G.vr || (vClear(), G.vr);
+  const layer = $('#dielayer');
+  layer.innerHTML = '';
+  V.dice = vr.vals.map((v,i)=>{
+    const p = vDenorm(vr.pos[i] || [.5,.5,0]);
+    const d = {v, face:v, sel:!!(vr.sel && vr.sel[i]), rot:(vr.pos[i]||[0,0,0])[2]||0,
+               x:p.x, y:p.y, vx:0, vy:0, vrot:0, moving:false};
+    d.node = vNode();
+    d.node.classList.toggle('sel', d.sel);
+    if((vr.best||[]).includes(i)) d.node.classList.add('best');
+    if(vr.live && !vr.live.includes(i)) d.node.classList.add('dead');
+    d.node.onclick = () => vTap(i);
+    layer.append(d.node);
+    return d;
+  });
+  vPaint();
+  vChrome();
+}
+/* the readout, the cup and the two buttons all say the same thing */
+function vChrome(){
+  if(!vOn()) return;
+  const onTable = V.dice.length, sel = V.dice.filter(d=>d.sel);
+  const dec = sel.length ? decompose(countsOf(sel.map(d=>d.v))) : {pts:0, parts:[]};
+  const read = $('#vread'), roll = $('#rollBtn'), bank = $('#bankBtn'), me = G.players[G.cur];
+
+  $('#cup').classList.toggle('hide', onTable > 0 || V.lock || G.over);
+
+  if(!V.lock){                                   // mid-throw the animation owns the line
+    read.classList.remove('tapme','bad');
+    read.onclick = null;
+    if(!onTable){
+      read.innerHTML = G.pot ? `👆 shake the cup — <b>${fmt(G.pot)}</b> in the pot`
+                             : '👆 shake the cup';
+      read.classList.add('tapme');
+      read.onclick = vRoll;
+    } else if(!sel.length){
+      read.innerHTML = G.vr.bestPts ? `✨ best here is <b>+${fmt(G.vr.bestPts)}</b> — tap to take it`
+                                    : 'tap the dice you\'re keeping';
+      if(G.vr.best && G.vr.best.length){ read.classList.add('tapme'); read.onclick = vTakeBest; }
+    } else if(!dec){
+      read.textContent = '✕ those don\'t all score — drop one';
+      read.classList.add('bad');
+    } else {
+      read.innerHTML = `<b>+${fmt(dec.pts)}</b> · ${esc(dec.parts.map(p=>p.lab).join(' + '))}`;
+    }
+  }
+
+  const hot = onTable && dec && sel.length === onTable;
+  if(!onTable){
+    roll.innerHTML = 'ROLL 🎲';
+    roll.disabled = V.lock || G.over;
+  } else if(!sel.length || !dec){
+    roll.innerHTML = 'SET &amp; ROLL';
+    roll.disabled = true;
+  } else {
+    roll.innerHTML = `SET &amp; ROLL<small>+${fmt(dec.pts)} ${hot ? '🔥 hot dice' : '🎲'}</small>`;
+    roll.disabled = V.lock;
+  }
+  const pot = G.pot + (dec ? dec.pts : 0);
+  bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec);
+  $('#bankSub').textContent = pot ? `${fmt(total(me))} → ${fmt(total(me) + pot)}` : '';
+}
+function vTap(i){
+  if(V.lock || V.raf || !G || G.over) return;
+  const d = V.dice[i];
+  if(!d) return;
+  if(!d.sel && d.node.classList.contains('dead')){    // nothing you could ever build with it
+    S.nope();
+    d.node.classList.add('nope');
+    setTimeout(()=> d.node.classList.remove('nope'), 420);
+    return;
+  }
+  d.sel = !d.sel;
+  d.node.classList.toggle('sel', d.sel);
+  tone({freq: d.sel ? 880 : 520, dur:.07, type:'sine', vol:.13});
+  clack();
+  // they're choosing for themselves now — the hint has done its job
+  V.dice.forEach(x => x.node.classList.remove('best'));
+  G.vr.best = [];
+  G.vr.sel = V.dice.map(x => x.sel);
+  vPaint(); vChrome(); save();
+}
+function vTakeBest(){
+  const idx = (G.vr && G.vr.best) || [];
+  if(!idx.length || V.lock || V.raf) return;
+  S.tap();
+  V.dice.forEach((d,i)=>{
+    d.sel = idx.includes(i);
+    d.node.classList.toggle('sel', d.sel);
+    d.node.classList.remove('best');
+  });
+  G.vr.best = []; G.vr.bestPts = 0;
+  G.vr.sel = V.dice.map(d => d.sel);
+  vPaint(); vChrome(); save();
+}
+/* ---- the throw ---- */
+function vRoll(){
+  if(!vOn() || V.raf || V.lock || G.over) return;
+  const n = 6 - (diceUsed() % 6);
+  if(n <= 0) return;
+  step();                                   // undo comes back to the moment before the throw
+  vClear();
+  // the faces are decided here; the tumbling is only theatre
+  const vals = Array.from({length:n}, () => RI(1,6));
+  const b = vBox(), S = vSize();
+  const cx = b.w/2, cy = b.h*.87;           // out of the cup mouth, down at the near rail
+
+  const gen = ++V.gen;
+  V.lock = true;
+  const cup = $('#cup');
+  cup.classList.remove('hide','shake'); void cup.offsetWidth; cup.classList.add('shake');
+  const read = $('#vread');
+  read.classList.remove('tapme','bad'); read.onclick = null; read.textContent = 'shaking…';
+  vChrome();
+  shakeCup();
+
+  setTimeout(()=>{
+    if(gen !== V.gen || !vOn()) return;           // undone, quit, or a new game started
+    cup.classList.add('hide');
+    const layer = $('#dielayer');
+    layer.innerHTML = '';
+    V.dice = vals.map((v,i)=>{
+      // a wide fan up the table, some hard, some barely — that's what a cup does
+      const a = -Math.PI/2 + R(-1.15,1.15), sp = R(9,21);
+      const d = {v, face:RI(1,6), sel:false,
+                 x:cx + R(-16,16), y:cy + R(-8,8),
+                 vx:Math.cos(a)*sp*R(.85,1.6), vy:Math.sin(a)*sp,
+                 rot:R(0,360), vrot:R(-30,30), moving:true};
+      d.node = vNode();
+      d.node.onclick = () => vTap(i);
+      layer.append(d.node);
+      return d;
+    });
+    clatter(n);
+    read.textContent = 'rolling…';
+    if(easy){                               // no tumbling for anyone who asked for less of it
+      const pad = S*.62;
+      V.dice.forEach(d=>{ d.moving = false; d.face = d.v;
+        d.x = pad + Math.random()*(b.w-2*pad); d.y = pad + Math.random()*(b.h-2*pad); });
+      for(let k=0;k<10;k++) vSeparate();
+      vPaint(); vSettled(); return;
+    }
+    V.tick = 0;
+    V.raf = requestAnimationFrame(vStep);
+  }, easy ? 40 : 360);
+}
+/* dice never overlap on a real table either */
+function vSeparate(){
+  const S = vSize(), min = S*.97;
+  for(let i=0;i<V.dice.length;i++) for(let j=i+1;j<V.dice.length;j++){
+    const A = V.dice[i], B = V.dice[j];
+    let dx = B.x-A.x, dy = B.y-A.y, dist = Math.hypot(dx,dy) || .01;
+    if(dist >= min) continue;
+    const nx = dx/dist, ny = dy/dist, push = (min-dist)/2;
+    A.x -= nx*push; A.y -= ny*push; B.x += nx*push; B.y += ny*push;
+    const p = (A.vx-B.vx)*nx + (A.vy-B.vy)*ny;
+    if(p > .6){                                    // a real knock, not just a nudge apart
+      A.vx -= p*nx*.85; A.vy -= p*ny*.85; B.vx += p*nx*.85; B.vy += p*ny*.85;
+      A.vrot += R(-9,9); B.vrot += R(-9,9);
+      A.moving = B.moving = true;
+      vClack();
+    }
+  }
+  const b = vBox(), r = S*.55;
+  V.dice.forEach(d=>{
+    d.x = Math.max(r, Math.min(b.w-r, d.x));
+    d.y = Math.max(r, Math.min(b.h-r, d.y));
+    // the corner the ❓ and 🏠 buttons sit in is a rack, not table — a die that stopped
+    // under one couldn't be tapped, so it gets shoved back out the shorter way
+    const cx = b.w - 92 - r, cy = 52 + r;
+    if(d.x > cx && d.y < cy){
+      if(d.x - cx < cy - d.y){ d.x = cx; if(d.vx > 0) d.vx = -d.vx*.5; }
+      else                   { d.y = cy; if(d.vy < 0) d.vy = -d.vy*.5; }
+    }
+  });
+}
+function vStep(){
+  const b = vBox(), r = vSize()*.55;
+  let live = false;
+  V.tick++;
+  V.dice.forEach(d=>{
+    if(!d.moving) return;
+    d.x += d.vx; d.y += d.vy; d.rot += d.vrot;
+    d.vx *= .956; d.vy *= .956; d.vrot *= .95;
+    // the rails
+    if(d.x < r)      { d.x = r;      d.vx =  Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
+    if(d.x > b.w-r)  { d.x = b.w-r;  d.vx = -Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
+    if(d.y < r)      { d.y = r;      d.vy =  Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
+    if(d.y > b.h-r)  { d.y = b.h-r;  d.vy = -Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
+    if(V.tick % 3 === 0) d.face = RI(1,6);         // tumbling, until it isn't
+    if(Math.hypot(d.vx, d.vy) < .4){ d.moving = false; d.face = d.v; }
+    else live = true;
+  });
+  vSeparate();
+  vPaint();
+  if(live && V.tick < 260){ V.raf = requestAnimationFrame(vStep); return; }
+  V.raf = 0;
+  V.dice.forEach(d=>{ d.moving = false; d.face = d.v; });
+  vSettled();
+}
+function vSettled(){
+  V.raf = 0;
+  if(!vOn()){ V.lock = false; return; }
+  for(let k=0;k<10;k++) vSeparate();
+  vPaint();
+  const vals = V.dice.map(d => d.v);
+  const {best, live} = survey(vals);
+  G.vr = {vals, sel:vals.map(()=>false), pos:V.dice.map(vNorm),
+          best: best.pts ? best.idx : [], bestPts: best.pts, live};
+  V.dice.forEach((d,i)=>{
+    d.node.classList.toggle('dead', !live.includes(i));
+    d.node.classList.toggle('best', G.vr.best.includes(i));
+  });
+  save();
+  if(!best.pts){ vFarkle(); return; }
+  if(best.pts >= 1000) sparkle(.12);
+  V.lock = false;
+  vChrome();
+  // the glow is a nudge, not a decision — it fades and leaves them to it
+  setTimeout(()=> V.dice.forEach(d => d.node.classList.remove('best')), 3200);
+}
+function vFarkle(){
+  const gen = ++V.gen;
+  V.lock = true;
+  const surf = $('#surface');
+  surf.classList.remove('farkled'); void surf.offsetWidth; surf.classList.add('farkled');
+  const read = $('#vread');
+  read.classList.remove('tapme'); read.classList.add('bad'); read.onclick = null;
+  read.textContent = '💀 nothing scores';
+  vChrome();
+  setTimeout(()=>{
+    surf.classList.remove('farkled');
+    if(gen !== V.gen) return;                     // they undid the throw while it sat there
+    V.lock = false;
+    if(G && !G.over) doFarkle();
+  }, 1400);
+}
+/* set the chosen dice aside: they lift off the felt and land in the tally above */
+function vCommit(){
+  const sel = V.dice.filter(d => d.sel);
+  if(!sel.length) return true;
+  const dec = decompose(countsOf(sel.map(d => d.v)));
+  if(!dec){ S.nope(); bump($('#surface')); return false; }
+
+  const fly = $('#flylayer'), S2 = vSize();
+  sel.forEach(d=>{
+    const c = d.node.cloneNode(true);
+    c.classList.add('fly'); c.classList.remove('sel','best','dead');
+    c.style.width = c.style.height = S2 + 'px';
+    c.style.transform = d.node.style.transform;
+    fly.append(c);
+    const x = (d.x - S2/2).toFixed(1);
+    requestAnimationFrame(()=> requestAnimationFrame(()=>{
+      c.style.transform = `translate(${x}px, ${-S2*1.6}px) rotate(0deg) scale(.5)`;
+      c.style.opacity = '0';
+    }));
+    setTimeout(()=> c.remove(), 640);
+  });
+
+  const keep = V.dice.filter(d => !d.sel);
+  const left = {vals:keep.map(d=>d.v), sel:keep.map(()=>false), pos:keep.map(vNorm),
+                best:[], bestPts:0, live:keep.map((_,i)=>i)};
+  // one step for the whole handful, so undo puts the dice back the way they were
+  step();
+  V.lock = true;                            // …and the fly-out isn't wiped by a redraw
+  dec.parts.forEach(p => addScore(p.lab, p.pts, p.icon, p.id, p.dice.length, true));
+  V.lock = false;
+  G.vr = left;
+  render(); save();
+  return true;
+}
+$('#rollBtn').onclick = () => {
+  if(!vOn() || V.lock || V.raf || G.over) return;
+  if(!V.dice.length){ vRoll(); return; }
+  if(!vCommit()) return;
+  setTimeout(vRoll, 280);
+};
+$('#cup').onclick = () => { if(!V.dice.length) vRoll(); };
+$('#comboBtn').onclick = () => { S.tap(); $('#rulesOvl').classList.add('on'); };
+$('#houseBtn').onclick = openRuleSheet;
+// the felt is measured in pixels, so a rotation or a resized window has to redraw it
+let vResize = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(vResize);
+  vResize = setTimeout(()=>{ if(vOn() && !V.raf && !V.lock) vSync(); }, 140);
+});
+
 /* ---------- chrome ---------- */
 /* ---------- full screen (iPad Safari and desktop; iPhone Safari has no such thing) ---------- */
 const docEl = document.documentElement;
@@ -1777,7 +2369,7 @@ $('#resumeBtn').onclick = () => { S.tap(); $('#menuOvl').classList.remove('on');
 $('#newGameBtn').onclick = () => {
   $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
   startGame(G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color})),
-            {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide});
+            {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide, virtual:G.virtual});
 };
 $('#quitBtn').onclick = () => {
   $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
@@ -1785,6 +2377,7 @@ $('#quitBtn').onclick = () => {
   lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color}));
   renderPlayers(); show('setup');
   LS.del(SAVE);
+  vAbort();
   G = null;
 };
 $('#againBtn').onclick = $('#newGameBtn').onclick;
@@ -1808,6 +2401,8 @@ function load(){
     g.players.forEach(p => { if(!p.rode) p.rode = p.turns.map(()=>false); });
     if(g.letRide === undefined) g.letRide = true;
     if(g.table === undefined) g.table = null;
+    if(g.virtual === undefined) g.virtual = false;
+    if(!g.vr) g.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]};
     G = g; past = []; future = [];
     show('game'); buildPad(); render();
     if(G.over) $('#winOvl').classList.add('on');
@@ -1822,6 +2417,7 @@ $('#soundBtn').textContent = soundOn ? '🔊' : '🔇';
 document.body.insertAdjacentHTML('afterbegin', diceSprite());
 loadRoster();
 loadRules();
+if(LS.get(VDICE) === '1'){ $('#virtual').classList.add('on'); $('#virtual').setAttribute('aria-checked','true'); }
 // start with the last crew if we know one, otherwise two blank seats
 lineup = roster.slice(-2).map(r=>({name:r.name, emoji:r.emoji, color:r.color}));
 while(lineup.length < 2) lineup.push(newPlayer());
