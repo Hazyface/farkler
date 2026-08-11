@@ -479,17 +479,10 @@
               pointer-events:none;transition:border-color .12s, box-shadow .12s}
   .vdie.sel{filter:drop-shadow(0 12px 12px rgba(0,0,0,.6))}
   .vdie.sel .ring{border-color:var(--gold);box-shadow:0 0 18px rgba(255,203,71,.85)}
-  /* dead dice — nothing you can do with them, so they sink into the felt */
-  .vdie.dead{filter:grayscale(.6) brightness(.62) drop-shadow(0 4px 5px rgba(0,0,0,.5))}
-  /* the flash after the roll: here's the biggest thing on the table */
-  .vdie.best .ring{animation:bestpulse .85s ease-in-out infinite}
-  @keyframes bestpulse{
-    0%,100%{border-color:rgba(120,255,180,0);box-shadow:0 0 0 rgba(80,255,160,0)}
-    50%{border-color:rgba(130,255,190,.95);box-shadow:0 0 20px rgba(70,255,160,.75)}
-  }
+  /* the dice say nothing about themselves — six plain white dice, you pick. The only
+     ring that ever shows is the gold one on what you've chosen, and the red refusal. */
   .vdie.nope .ring{border-color:#ff5a4a;box-shadow:0 0 16px rgba(255,80,60,.8)}
   .vdie.fly{transition:transform .5s cubic-bezier(.35,0,.85,.4), opacity .5s ease}
-  @media (prefers-reduced-motion:reduce){ .vdie.best .ring{animation:none;border-color:rgba(130,255,190,.9)} }
 
   .cup{position:absolute;left:50%;bottom:15%;width:clamp(64px,21%,112px);padding:0;background:none;
        transform:translateX(-50%);transform-origin:50% 88%;z-index:3;
@@ -911,6 +904,8 @@ function fart(o){
 function burp(o){ o=o||{}; fart(Object.assign({dur:R(.28,.6), base:R(42,72), type:'square', vol:.42, spread:.7}, o)); }
 function raspberry(d){ fart({dur:R(.3,.5), base:R(150,240), vol:.32, spread:1.2, delay:d||0, wet:true}); }
 function squeaker(d){ fart({dur:R(.15,.3), base:R(260,420), vol:.25, spread:1.4, delay:d||0}); }
+// the shortest one in the drawer — for a die that was never going to score
+function pfft(d){ fart({dur:R(.11,.18), base:R(80,140), vol:.3, spread:1, delay:d||0}); }
 function splat(d){ noise(.22,.22,d||0,R(400,900),'lowpass'); tone({freq:R(90,150), slide:50, dur:.2, delay:d||0, type:'sine', vol:.2}); }
 function groan(d){
   d = d||0;
@@ -1109,20 +1104,20 @@ function rideCheer(){
 /* ---- virtual dice: wood, felt and plastic ---- */
 // dice knocking around inside the cup before they come out
 function shakeCup(){
-  noise(.34, .10, 0, 620, 'lowpass');
-  for(let i=0;i<8;i++) noise(.04, .06, Math.random()*.34, 900+Math.random()*1700, 'bandpass');
+  noise(.34, .05, 0, 620, 'lowpass');
+  for(let i=0;i<8;i++) noise(.04, .03, Math.random()*.34, 900+Math.random()*1700, 'bandpass');
 }
 // the spill: a scatter of clicks that thins out as they come to rest
 function clatter(n){
   for(let i=0;i<n*5;i++){
     const t = Math.pow(Math.random(), 1.6) * .8;
-    noise(.045, .07*(1-t*.7), t, 1000+Math.random()*2400, 'bandpass');
+    noise(.045, .035*(1-t*.7), t, 1000+Math.random()*2400, 'bandpass');
   }
-  tone({freq:R(58,86), dur:.28, type:'sine', vol:.07});
+  tone({freq:R(58,86), dur:.28, type:'sine', vol:.035});
 }
 // one die hitting a rail or another die
 function clack(){
-  noise(.035, .055, 0, 1100 + Math.random()*2100, 'bandpass');
+  noise(.035, .0275, 0, 1100 + Math.random()*2100, 'bandpass');
 }
 
 /* ---- the crowd ---- */
@@ -2027,8 +2022,6 @@ function vSync(){
                x:p.x, y:p.y, vx:0, vy:0, vrot:0, moving:false};
     d.node = vNode();
     d.node.classList.toggle('sel', d.sel);
-    if((vr.best||[]).includes(i)) d.node.classList.add('best');
-    if(vr.live && !vr.live.includes(i)) d.node.classList.add('dead');
     d.node.onclick = () => vTap(i);
     layer.append(d.node);
     return d;
@@ -2084,8 +2077,11 @@ function vTap(i){
   if(V.lock || V.raf || !G || G.over) return;
   const d = V.dice[i];
   if(!d) return;
-  if(!d.sel && d.node.classList.contains('dead')){    // nothing you could ever build with it
-    S.nope();
+  // nothing you could ever build with it. The die looks like all the others, so the
+  // only way they find out is by trying — hence the noise.
+  const live = (G.vr && G.vr.live) || [];
+  if(!d.sel && !live.includes(i)){
+    pfft();
     d.node.classList.add('nope');
     setTimeout(()=> d.node.classList.remove('nope'), 420);
     return;
@@ -2094,9 +2090,6 @@ function vTap(i){
   d.node.classList.toggle('sel', d.sel);
   tone({freq: d.sel ? 880 : 520, dur:.07, type:'sine', vol:.13});
   clack();
-  // they're choosing for themselves now — the hint has done its job
-  V.dice.forEach(x => x.node.classList.remove('best'));
-  G.vr.best = [];
   G.vr.sel = V.dice.map(x => x.sel);
   vPaint(); vChrome(); save();
 }
@@ -2107,9 +2100,9 @@ function vTakeBest(){
   V.dice.forEach((d,i)=>{
     d.sel = idx.includes(i);
     d.node.classList.toggle('sel', d.sel);
-    d.node.classList.remove('best');
   });
-  G.vr.best = []; G.vr.bestPts = 0;
+  // the offer stands as long as these dice are on the felt — drop the selection and
+  // the bar goes back to offering it
   G.vr.sel = V.dice.map(d => d.sel);
   vPaint(); vChrome(); save();
 }
@@ -2227,17 +2220,19 @@ function vSettled(){
   const {best, live} = survey(vals);
   G.vr = {vals, sel:vals.map(()=>false), pos:V.dice.map(vNorm),
           best: best.pts ? best.idx : [], bestPts: best.pts, live};
-  V.dice.forEach((d,i)=>{
-    d.node.classList.toggle('dead', !live.includes(i));
-    d.node.classList.toggle('best', G.vr.best.includes(i));
-  });
   save();
-  if(!best.pts){ vFarkle(); return; }
+  // Nothing on the table — but let them see that for themselves before the app says so.
+  // Half a second a die: a six-dice farkle is worth a longer look than a two-dice one.
+  if(!best.pts){
+    const gen = ++V.gen, read = $('#vread');
+    V.lock = true;
+    read.classList.remove('tapme','bad'); read.onclick = null; read.textContent = '…';
+    setTimeout(()=>{ if(gen === V.gen && vOn()) vFarkle(); }, 500 * vals.length);
+    return;
+  }
   if(best.pts >= 1000) sparkle(.12);
   V.lock = false;
   vChrome();
-  // the glow is a nudge, not a decision — it fades and leaves them to it
-  setTimeout(()=> V.dice.forEach(d => d.node.classList.remove('best')), 3200);
 }
 function vFarkle(){
   const gen = ++V.gen;
@@ -2265,7 +2260,7 @@ function vCommit(){
   const fly = $('#flylayer'), S2 = vSize();
   sel.forEach(d=>{
     const c = d.node.cloneNode(true);
-    c.classList.add('fly'); c.classList.remove('sel','best','dead');
+    c.classList.add('fly'); c.classList.remove('sel');
     c.style.width = c.style.height = S2 + 'px';
     c.style.transform = d.node.style.transform;
     fly.append(c);

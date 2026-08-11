@@ -45,15 +45,18 @@ Tap a button for each scoring combo you roll; they stack up in the pot. **Bank i
 A black cup on red felt. Tap it and six white dice spill out and scatter — a small collision
 sim, so they bounce off the rails and off each other and land where they land.
 
-- **Dead dice go grey.** Anything that can't be part of any scoring combination is dimmed, and
-  tapping one is refused.
-- **The best combo flashes** for a few seconds after the throw. The bar under the felt names it
-  and its score; tap the bar to take it in one go.
-- **Tap what you're keeping.** The bar adds up your picks as you go and won't let you set aside
-  a handful that doesn't fully score — no leaving a stray 3 in with your three 5s.
+- **Tap what you're keeping.** Six identical white dice — the felt tells you nothing about which
+  ones are worth anything, so read your own roll. The bar adds up your picks as you go and won't
+  let you set aside a handful that doesn't fully score — no leaving a stray 3 in with your three 5s.
+- **A dud makes a rude noise.** Tap a die that can't be part of any combination and it flashes red
+  and farts at you.
+- **The bar knows the best combo.** With nothing selected it names the biggest thing on the table
+  and what it's worth; tap the bar to take it in one go.
 - **Set & roll** drops those dice into the tally, adds the points to your pot and throws what's
   left. Set all six and hot dice hands you a fresh six.
-- **Farkle calls itself.** Roll nothing at all and the felt flashes red and takes your turn.
+- **Farkle calls itself** — but not straight away. It gives you half a second per die to find
+  something in there yourself (three seconds on a full six) before the felt flashes red and takes
+  your turn.
 
 Everything else — banking, letting it ride, house rules, undo, the scoresheet — works exactly the
 same. Undo steps back through throws and set-asides the way it steps through button presses.
