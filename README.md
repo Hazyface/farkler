@@ -55,23 +55,28 @@ single camera over the table — so a die out near the rail shows you its side t
 in a photograph taken from above, and rolling is the cube actually turning over rather than a
 flat square whose pips change. Some notes on what that took:
 
-- **Sharp edges.** Six *rounded* faces meeting along an edge leave a notch at every corner that
-  you can see the felt straight through. The cube faces are square-cornered and the roundness is
-  painted back on just inside the edge.
+- **Rounded corners need a plug.** Six rounded faces meeting at a cube's corner leave a pinhole
+  where three of them fall away, and you see the felt straight through it. One dark rounded panel
+  across the middle of the die stops all eight — dark, because a corner you're looking into is in
+  shadow anyway.
 - **No `drop-shadow` anywhere above a cube.** A filter flattens everything beneath it and the
   cube collapses to a card. The shadow is its own thing lying on the felt, spreading and going
   weak as the die gets up off the table.
 - **Which way up is a six?** Each side sits a quarter turn from the front, so the app works out
   once, from the browser's own matrix maths, every pair of quarter turns that brings a given side
-  round to face the camera. A die that has stopped picks whichever is the shortest turn from
-  wherever it's pointing and eases into it — the last tip a real die makes as it settles.
+  round to face the camera.
+- **A die must not change its mind.** The number was decided before the dice left the cup, so the
+  tumble has to be talked round to the right face at some point. Do that at the stop and it looks
+  like a cheat — the die has visibly finished rolling and then turns over anyway. So it picks its
+  face while it's still sliding, a good half second out, and rolls onto it, carrying on the way it
+  was already turning where that's anywhere near as short as turning back.
 - **Lighting has to follow the landing.** A die at rest is lit from above, so the side you see
   down past the edge is in shade — but *which* side that is depends on how it landed, so the light
   goes on the one face that ends up on top. Mid-throw every face is lit; dimming a tumbling die
   just makes the roll look muddy.
 
-Verified across 408 settled dice: every one shows the face it actually rolled, and 1,170 pairs
-with no overlap.
+Measured over 402 settled dice: every one shows the face it actually rolled, not one changed face
+after it stopped moving, and 1,005 pairs with no overlap. A throw takes about 1.1 seconds.
 
 - **Tap what you're keeping.** Six identical white dice — the felt tells you nothing about which
   ones are worth anything, so read your own roll. The bar adds up your picks as you go and won't

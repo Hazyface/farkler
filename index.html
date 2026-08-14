@@ -506,17 +506,22 @@
 
   /* six real sides, hinged around the middle of the die. No drop-shadow filter anywhere on
      the way down: a filter flattens everything under it and the cube would collapse. */
+  /* no transition on this: the die turns onto its face in the physics, while it's still
+     moving. Easing it into place after it stops is exactly what looks like a cheat. */
   .cube{position:absolute;inset:0;transform-style:preserve-3d}
-  .cube.settling{transition:transform .3s cubic-bezier(.25,.8,.35,1)}
   /* dead flush with each other: any slack here and the felt shows through the corners */
   .cf{position:absolute;inset:0;backface-visibility:hidden}
   /* A die at rest is lit from above, so the side you can see down past the edge is in shade.
      Which side that is depends on how the die landed, so the light goes on the one face that
      ends up on top and every other face stays down. Mid-throw they're all lit — a tumbling
      die catches the light on every face and dimming them just makes the roll look muddy. */
-  .cf::after{content:"";position:absolute;inset:0;background:#0a0d11;opacity:.34;
+  .cf::after{content:"";position:absolute;inset:0;border-radius:17%;background:#0a0d11;opacity:.34;
              transition:opacity .3s ease}
   .cf.lit::after{opacity:0}
+  /* Rounding the faces cuts a pinhole out of each corner of the cube where three of them
+     meet, and you'd see the felt straight through it. This sits across the middle of the die
+     and plugs all eight — dark, because a corner you're looking into is in shadow anyway. */
+  .cube::before{content:"";position:absolute;inset:-1%;border-radius:21%;background:#5d5850}
   .f1{transform:translateZ(var(--h))}
   .f6{transform:rotateY(180deg) translateZ(var(--h))}
   .f2{transform:rotateX(90deg)  translateZ(var(--h))}
@@ -1304,13 +1309,12 @@ function diceSprite(){
       <rect x="8" y="7" width="84" height="40" rx="17" fill="url(#dieGloss)"/>
       ${PIPS[n].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#pip)"/>`).join('')}
     </symbol>`).join('');
-  // The six sides of a real cube. Sharp-cornered, unlike the flat die: six rounded faces
-  // meeting along an edge leave a notch at every corner and you see the felt straight through
-  // it. The roundness goes back on as a bevel painted just inside the edge instead.
+  // The six sides of a real cube: a rounded face with a darker rim carrying the roundness of
+  // the edge, so where two of them meet you get a soft corner rather than a knife edge.
   const sides = [1,2,3,4,5,6].map(n => `
     <symbol id="cube-${n}" viewBox="0 0 100 100" preserveAspectRatio="none">
-      <rect x="0" y="0" width="100" height="100" fill="#cfccc3"/>
-      <rect x="3" y="3" width="94" height="94" rx="13" fill="url(#dieBody)"/>
+      <rect x="0" y="0" width="100" height="100" rx="17" fill="#c6c2b8"/>
+      <rect x="2.5" y="2.5" width="95" height="95" rx="15" fill="url(#dieBody)"/>
       <rect x="6" y="5" width="88" height="38" rx="15" fill="url(#dieGloss)" opacity=".55"/>
       ${PIPS[n].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#pip)"/>`).join('')}
     </symbol>`).join('');
@@ -2170,8 +2174,7 @@ function vNode(){
 /* ---- which way up is a six? ---- */
 /* Each side sits at a quarter turn from the front, so its outward normal in the die's own
    frame is one of these. Work out, once, every pair of quarter turns that brings a given
-   side round to face the camera — then a die that has stopped rolling can pick whichever
-   of them is the shortest turn from wherever it happens to be pointing. */
+   side round to face the camera — a die coming to a stop then has somewhere to aim for. */
 const CUBE_N = {1:[0,0,1], 6:[0,0,-1], 2:[0,-1,0], 5:[0,1,0], 3:[1,0,0], 4:[-1,0,0]};
 const CUBE_POSE = {1:[],2:[],3:[],4:[],5:[],6:[]};
 [0,90,180,270].forEach(rx => [0,90,180,270].forEach(ry=>{
@@ -2183,28 +2186,43 @@ const CUBE_POSE = {1:[],2:[],3:[],4:[],5:[],6:[]};
     if(sx*a[1] + cx*a[2] > .99) CUBE_POSE[v].push([rx, ry]);  // rotateX — is it facing us?
   }
 }));
-// stop tumbling and lie down showing v, turning as little as it has to to get there
-function vRest(d){
-  let bx = 0, by = 0, best = 1e9;
+/* The die it is going to be was decided before it left the cup, so the tumble has to be
+   talked round to the right face at some point. Doing that at the stop is what makes a die
+   look like it changed its mind — it has visibly finished rolling and then turns over anyway.
+   So it picks its face while it is still sliding, well before it stops, and rolls onto it:
+   the last quarter turn a real die makes as it runs out of go. Turning the way it was already
+   turning, if that's anywhere near as short as turning back. */
+const LAND_AT = 3.4;                          // the speed at which it stops choosing
+function vAim(d){
+  let best = null, bd = 1e9;
   (CUBE_POSE[d.v] || [[0,0]]).forEach(([px,py])=>{
-    const rx = px + Math.round((d.rx - px)/360)*360;
-    const ry = py + Math.round((d.ry - py)/360)*360;
-    const turn = Math.abs(rx - d.rx) + Math.abs(ry - d.ry);
-    if(turn < best){ best = turn; bx = rx; by = ry; }
+    const on  = [px + Math.round((d.rx - px)/360)*360, py + Math.round((d.ry - py)/360)*360];
+    // the same face again, one turn further round the way it's already going
+    const go  = [on[0] + (d.wx >= 0 ? 360 : -360), on[1] + (d.wy >= 0 ? 360 : -360)];
+    [[on[0], on[1]], [go[0], on[1]], [on[0], go[1]]].forEach(t=>{
+      const turn = Math.abs(t[0] - d.rx) + Math.abs(t[1] - d.ry);
+      // carrying on costs up to a whole extra turn, and is worth it up to a point
+      const cost = turn + ((t[0]-d.rx)*d.wx < 0 || (t[1]-d.ry)*d.wy < 0 ? 130 : 0);
+      if(cost < bd && turn < 420){ bd = cost; best = t; }
+    });
   });
-  d.rx = bx; d.ry = by; d.moving = false; d.z = 0; d.vz = 0;
+  return best || [d.rx, d.ry];
+}
+// down, done turning, and showing what it rolled
+function vRest(d){
+  const aim = d.aim || vAim(d);
+  d.rx = aim[0]; d.ry = aim[1];
+  d.moving = false; d.z = 0; d.vz = 0; d.aim = null;
   if(!d.node) return;
-  d.node.querySelector('.cube').classList.add('settling');
   vLight(d, d.v);                             // the face it landed on is the one in the light
 }
-// knocked back into life by a neighbour: it has to go back to being drawn frame by frame,
-// or the easing on the settle would smear every step of it
+// knocked back into life by a neighbour — it gets to pick its face all over again
 function vWake(d){
   if(d.moving) return;
   d.moving = true;
-  if(!d.wx && !d.wy){ d.wx = R(-3.6,3.6); d.wy = R(-3.6,3.6); }
+  d.aim = null;
+  if(!d.wx && !d.wy){ d.wx = R(-2.4,2.4); d.wy = R(-2.4,2.4); }
   if(!d.node) return;
-  d.node.querySelector('.cube').classList.remove('settling');
   vLight(d, 0);                               // all of it, while it's still going over
 }
 function vLight(d, up){
@@ -2409,8 +2427,8 @@ function vRoll(){
                  vx:Math.cos(a)*sp*R(.85,1.6), vy:Math.sin(a)*sp,
                  rot:R(0,360), vrot:R(-30,30), moving:true,
                  z:R(.1,.45), vz:R(.10,.22),                  // …and up out of the mouth of the cup
-                 // which way it's tumbling, and how fast per unit of travel
-                 rx:R(0,360), ry:R(0,360), wx:R(-3.6,3.6), wy:R(-3.6,3.6)};
+                 // which way it's tumbling, how fast per unit of travel, and what it's aiming at
+                 rx:R(0,360), ry:R(0,360), wx:R(-2.4,2.4), wy:R(-2.4,2.4), aim:null};
       d.node = vNode();
       d.node.onclick = () => vTap(i);
       layer.append(d.node);
@@ -2427,7 +2445,7 @@ function vRoll(){
     }
     V.tick = 0;
     V.raf = requestAnimationFrame(vStep);
-  }, easy ? 40 : 360);
+  }, easy ? 40 : 290);
 }
 /* Dice are square, so a round hit test was wrong in the one place it shows: two dice
    meeting corner-first passed the distance check while their corners plainly overlapped.
@@ -2497,10 +2515,10 @@ function vStep(){
     if(!d.moving) return;
     d.x += d.vx; d.y += d.vy; d.rot += d.vrot;
     // a die skidding along the felt slows faster than one still bouncing along above it
-    const drag = d.z > .02 ? .985 : .948;
-    d.vx *= drag; d.vy *= drag; d.vrot *= d.z > .02 ? .985 : .94;
+    const drag = d.z > .02 ? .982 : .932;
+    d.vx *= drag; d.vy *= drag; d.vrot *= d.z > .02 ? .982 : .928;
     // the hop: dice come out of a cup and bounce, they don't slide out flat
-    d.vz -= .028;
+    d.vz -= .034;
     d.z += d.vz;
     if(d.z <= 0){
       d.z = 0;
@@ -2513,12 +2531,23 @@ function vStep(){
     if(d.x > b.w-r)  { d.x = b.w-r;  d.vx = -Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y < r)      { d.y = r;      d.vy =  Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y > b.h-r)  { d.y = b.h-r;  d.vy = -Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
-    // it tumbles end over end at the speed it's travelling, so the turning winds down
-    // with the die rather than strobing at a fixed rate right up to the stop
     const sp = Math.hypot(d.vx, d.vy);
-    d.rx += d.wx * sp; d.ry += d.wy * sp;
-    if(sp < .4 && d.z <= 0) vRest(d);              // down, still, and showing what it rolled
-    else live = true;
+    if(!d.aim && sp < LAND_AT && d.z <= 0) d.aim = vAim(d);   // running out of go: pick a face
+    if(d.aim){
+      // roll onto it, firmer as it slows — the last turn of a die going over and staying put
+      const k = Math.min(.42, .1 + (LAND_AT - sp)*.09);
+      d.rx += (d.aim[0] - d.rx)*k;
+      d.ry += (d.aim[1] - d.ry)*k;
+      const there = Math.abs(d.aim[0]-d.rx) < .8 && Math.abs(d.aim[1]-d.ry) < .8;
+      if(sp < .4 && there) vRest(d);
+      else live = true;
+    } else {
+      // end over end at the speed it's travelling, so the turning winds down with the die.
+      // Capped per frame: past a quarter turn between frames you can't tell which way it's going.
+      const cap = t => Math.max(-42, Math.min(42, t));
+      d.rx += cap(d.wx * sp); d.ry += cap(d.wy * sp);
+      live = true;
+    }
   });
   vSeparate();
   vPaint();
