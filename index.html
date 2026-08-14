@@ -712,8 +712,9 @@
         <li>When someone banks and sits down, they leave their un-rolled dice on the table.</li>
         <li>The next player can <b>let it ride</b>: pick up that banked total as their own starting pot and
             keep rolling with whatever dice are sitting there.</li>
-        <li>Score on them and it all becomes yours to bank. Farkle and you lose the lot — but the player
-            who banked keeps their points either way.</li>
+        <li>You have to <b>score at least once</b> on those dice before you can bank — no picking up
+            a pot and walking off with it. Do it and the whole thing is yours. Farkle and you lose the lot —
+            but the player who banked keeps their points either way.</li>
         <li>Not feeling lucky? Tap ✕ and roll a fresh six.</li>
         <li>If the 500-to-get-on-the-board rule is on, nobody can ride until every player has banked their
             way onto the board.</li>
@@ -1594,6 +1595,9 @@ $('#ruleOnce').onclick = () => {
 };
 $('#ruleClose').onclick = () => { S.tap(); $('#ruleOvl').classList.remove('on'); };
 function diceUsed(){ return G.tape.reduce((a,x)=> a + (x.dice||0), 0); }
+// riding hands you someone else's pot before you've touched a die. You have to score on it
+// yourself before any of it is bankable — otherwise letting it ride would be free money.
+function ridingUnearned(){ return !!G.riding && !G.tape.some(x => !x.ride); }
 
 function addScore(lab, pts, icon, id, dice, quiet){
   if(G.over) return;
@@ -1676,7 +1680,10 @@ function render(){
       ? ` · <span class="chase">🔥 needs ${fmt(short)} more to pass ${esc(lead.name)} (${fmt(leadTot)})</span>`
       : ` · <span class="chase">🔥 BANK NOW AND YOU TAKE THE LEAD</span>`;
   }
-  const rode = G.riding ? ' · <span class="chase">🎠 riding!</span>' : '';
+  const rode = G.riding
+    ? (ridingUnearned() ? ' · <span class="chase">🎠 riding — score on it before you can bank</span>'
+                        : ' · <span class="chase">🎠 riding!</span>')
+    : '';
   const set = diceUsed() % 6;                    // how close this roll is to freeing all six
   const dice = G.tape.length ? ` · <span class="dcount">${set} of 6 dice set aside</span>` : '';
   // explain the missing offer at the moment someone would expect to see it
@@ -1742,6 +1749,11 @@ $('#bankBtn').onclick = () => {
   if(vOn() && V.dice.some(d => d.sel) && !vCommit()) return;
   const p = G.players[G.cur], t = total(p);
   if(G.pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
+  if(ridingUnearned()){                            // checked after the felt board commits
+    S.nope(); bump($('#bankBtn'));
+    toast('SCORE ON IT FIRST 🎠');
+    return;
+  }
   if(G.minOnBoard && t === 0 && G.pot < G.minOnBoard){
     S.nope(); bump($('#bankBtn'));
     toast(`GET ON THE BOARD, ${G.minOnBoard} 🚪`);
@@ -2070,7 +2082,9 @@ function vChrome(){
     roll.disabled = V.lock;
   }
   const pot = G.pot + (dec ? dec.pts : 0);
-  bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec);
+  // dice already lit on the felt count as scoring on it — banking commits them first
+  const unearned = ridingUnearned() && !(dec && dec.pts > 0);
+  bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec) || unearned;
   $('#bankSub').textContent = pot ? `${fmt(total(me))} → ${fmt(total(me) + pot)}` : '';
 }
 function vTap(i){
