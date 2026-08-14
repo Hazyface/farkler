@@ -497,15 +497,42 @@
     35%{box-shadow:inset 0 0 100px rgba(255,40,30,.9), 0 5px 0 var(--drop)}
   }
 
-  .dielayer,.flylayer{position:absolute;inset:0}
+  /* One camera over the middle of the table, so a die out at the rail shows you its side
+     the way it would in a photograph taken from above. */
+  .dielayer,.flylayer{position:absolute;inset:0;perspective:1000px;perspective-origin:50% 44%}
   .flylayer{pointer-events:none;z-index:6}
-  .vdie{position:absolute;left:0;top:0;will-change:transform;
-        filter:drop-shadow(0 7px 8px rgba(0,0,0,.55));transition:filter .18s}
+  .vdie{position:absolute;left:0;top:0;will-change:transform;transform-style:preserve-3d}
   .vdie svg{width:100%;height:100%;display:block}
-  .vdie .ring{position:absolute;inset:-7%;border-radius:28%;border:3px solid transparent;
-              pointer-events:none;transition:border-color .12s, box-shadow .12s}
-  .vdie.sel{filter:drop-shadow(0 12px 12px rgba(0,0,0,.6))}
-  .vdie.sel .ring{border-color:var(--gold);box-shadow:0 0 18px rgba(255,203,71,.85)}
+
+  /* six real sides, hinged around the middle of the die. No drop-shadow filter anywhere on
+     the way down: a filter flattens everything under it and the cube would collapse. */
+  .cube{position:absolute;inset:0;transform-style:preserve-3d}
+  .cube.settling{transition:transform .3s cubic-bezier(.25,.8,.35,1)}
+  /* dead flush with each other: any slack here and the felt shows through the corners */
+  .cf{position:absolute;inset:0;backface-visibility:hidden}
+  /* A die at rest is lit from above, so the side you can see down past the edge is in shade.
+     Which side that is depends on how the die landed, so the light goes on the one face that
+     ends up on top and every other face stays down. Mid-throw they're all lit — a tumbling
+     die catches the light on every face and dimming them just makes the roll look muddy. */
+  .cf::after{content:"";position:absolute;inset:0;background:#0a0d11;opacity:.34;
+             transition:opacity .3s ease}
+  .cf.lit::after{opacity:0}
+  .f1{transform:translateZ(var(--h))}
+  .f6{transform:rotateY(180deg) translateZ(var(--h))}
+  .f2{transform:rotateX(90deg)  translateZ(var(--h))}
+  .f5{transform:rotateX(-90deg) translateZ(var(--h))}
+  .f3{transform:rotateY(90deg)  translateZ(var(--h))}
+  .f4{transform:rotateY(-90deg) translateZ(var(--h))}
+  /* the shadow is its own thing lying on the felt now, not a filter on the die — it spreads
+     and goes weak as the die gets up off the table */
+  .shd{position:absolute;inset:-7%;border-radius:32%;pointer-events:none;
+       background:radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,.26) 46%, rgba(0,0,0,0) 100%);
+       transform:translate(7%, 10%) translateZ(calc(var(--h) * -1.02)) scale(calc(1 + var(--z) * .8));
+       opacity:calc(.85 - var(--z) * .3)}
+  .vdie .ring{position:absolute;inset:-9%;border-radius:26%;border:3px solid transparent;
+              pointer-events:none;transform:translateZ(calc(var(--h) * -1));
+              transition:border-color .12s, box-shadow .12s}
+  .vdie.sel .ring{border-color:var(--gold);box-shadow:0 0 22px rgba(255,203,71,.9)}
   /* the dice say nothing about themselves — six plain white dice, you pick. The only
      ring that ever shows is the gold one on what you've chosen, and the red refusal. */
   .vdie.nope .ring{border-color:#ff5a4a;box-shadow:0 0 16px rgba(255,80,60,.8)}
@@ -580,8 +607,6 @@
   @keyframes botblink{0%,100%{opacity:1}50%{opacity:.3}}
   /* the die it has just decided to keep gets picked up in front of you */
   .vdie.botpick .ring{border-color:#8fd0ff;box-shadow:0 0 18px rgba(143,208,255,.9)}
-  /* height, faked: a die in the air throws a longer shadow than one on the felt */
-  .vdie.air{filter:drop-shadow(0 16px 15px rgba(0,0,0,.5))}
 </style>
 </head>
 <body>
@@ -1279,6 +1304,16 @@ function diceSprite(){
       <rect x="8" y="7" width="84" height="40" rx="17" fill="url(#dieGloss)"/>
       ${PIPS[n].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#pip)"/>`).join('')}
     </symbol>`).join('');
+  // The six sides of a real cube. Sharp-cornered, unlike the flat die: six rounded faces
+  // meeting along an edge leave a notch at every corner and you see the felt straight through
+  // it. The roundness goes back on as a bevel painted just inside the edge instead.
+  const sides = [1,2,3,4,5,6].map(n => `
+    <symbol id="cube-${n}" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <rect x="0" y="0" width="100" height="100" fill="#cfccc3"/>
+      <rect x="3" y="3" width="94" height="94" rx="13" fill="url(#dieBody)"/>
+      <rect x="6" y="5" width="88" height="38" rx="15" fill="url(#dieGloss)" opacity=".55"/>
+      ${PIPS[n].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="10.5" fill="url(#pip)"/>`).join('')}
+    </symbol>`).join('');
   return `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
       <linearGradient id="dieBody" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f2f0ea"/><stop offset="1" stop-color="#d5d2c9"/>
@@ -1289,7 +1324,7 @@ function diceSprite(){
       <radialGradient id="pip" cx=".35" cy=".3" r=".85">
         <stop offset="0" stop-color="#4a4f55"/><stop offset=".6" stop-color="#23272b"/><stop offset="1" stop-color="#0e1113"/>
       </radialGradient>
-    </defs>${faces}
+    </defs>${faces}${sides}
     <symbol id="die-x" viewBox="0 0 100 100">
       <rect x="3" y="3" width="94" height="94" rx="22" fill="url(#dieBody)" stroke="#b9bfc4" stroke-width="1.5"/>
       <rect x="8" y="7" width="84" height="40" rx="17" fill="url(#dieGloss)"/>
@@ -2127,7 +2162,54 @@ const vBox  = () => { const s = $('#surface'); return {w:s.clientWidth||320, h:s
 const vSize = () => { const b = vBox(); return Math.max(28, Math.min(70, Math.min(b.w*.155, b.h*.235))); };
 function vClear(){ if(G) G.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]}; }
 function vNode(){
-  return el('div','vdie','<svg viewBox="0 0 100 100"><use href="#die-1"/></svg><span class="ring"></span>');
+  const sides = [1,2,3,4,5,6].map(n =>            // all lit: a die is made mid-throw
+    `<span class="cf lit f${n}"><svg viewBox="0 0 100 100"><use href="#cube-${n}"/></svg></span>`).join('');
+  return el('div','vdie',
+    `<span class="shd"></span><div class="cube">${sides}</div><span class="ring"></span>`);
+}
+/* ---- which way up is a six? ---- */
+/* Each side sits at a quarter turn from the front, so its outward normal in the die's own
+   frame is one of these. Work out, once, every pair of quarter turns that brings a given
+   side round to face the camera — then a die that has stopped rolling can pick whichever
+   of them is the shortest turn from wherever it happens to be pointing. */
+const CUBE_N = {1:[0,0,1], 6:[0,0,-1], 2:[0,-1,0], 5:[0,1,0], 3:[1,0,0], 4:[-1,0,0]};
+const CUBE_POSE = {1:[],2:[],3:[],4:[],5:[],6:[]};
+[0,90,180,270].forEach(rx => [0,90,180,270].forEach(ry=>{
+  const d = Math.PI/180, cx = Math.cos(rx*d), sx = Math.sin(rx*d),
+                         cy = Math.cos(ry*d), sy = Math.sin(ry*d);
+  for(let v=1; v<=6; v++){
+    const n = CUBE_N[v];
+    const a = [cy*n[0] + sy*n[2], n[1], cy*n[2] - sy*n[0]];   // rotateY, then
+    if(sx*a[1] + cx*a[2] > .99) CUBE_POSE[v].push([rx, ry]);  // rotateX — is it facing us?
+  }
+}));
+// stop tumbling and lie down showing v, turning as little as it has to to get there
+function vRest(d){
+  let bx = 0, by = 0, best = 1e9;
+  (CUBE_POSE[d.v] || [[0,0]]).forEach(([px,py])=>{
+    const rx = px + Math.round((d.rx - px)/360)*360;
+    const ry = py + Math.round((d.ry - py)/360)*360;
+    const turn = Math.abs(rx - d.rx) + Math.abs(ry - d.ry);
+    if(turn < best){ best = turn; bx = rx; by = ry; }
+  });
+  d.rx = bx; d.ry = by; d.moving = false; d.z = 0; d.vz = 0;
+  if(!d.node) return;
+  d.node.querySelector('.cube').classList.add('settling');
+  vLight(d, d.v);                             // the face it landed on is the one in the light
+}
+// knocked back into life by a neighbour: it has to go back to being drawn frame by frame,
+// or the easing on the settle would smear every step of it
+function vWake(d){
+  if(d.moving) return;
+  d.moving = true;
+  if(!d.wx && !d.wy){ d.wx = R(-3.6,3.6); d.wy = R(-3.6,3.6); }
+  if(!d.node) return;
+  d.node.querySelector('.cube').classList.remove('settling');
+  vLight(d, 0);                               // all of it, while it's still going over
+}
+function vLight(d, up){
+  d.node.querySelectorAll('.cf').forEach(cf=>
+    cf.classList.toggle('lit', !up || cf.classList.contains('f'+up)));
 }
 function vClack(){
   const now = performance.now();
@@ -2150,14 +2232,15 @@ function vPaint(){
   const S = vSize();
   V.dice.forEach(d=>{
     const n = d.node, z = d.z || 0;
-    n.style.width = n.style.height = S + 'px';
-    // height is faked the way it reads on a table from above: a die in the air is nearer
-    // the eye, so it's bigger, and its shadow drops further behind it
+    if(n._size !== S){ n._size = S; n.style.width = n.style.height = S + 'px'; }
+    n.style.setProperty('--h', (S/2) + 'px');
+    n.style.setProperty('--z', z.toFixed(3));
+    // the node is where the die is on the felt; the cube inside is which way up it is
     n.style.transform = `translate(${(d.x-S/2).toFixed(1)}px,${(d.y-S/2).toFixed(1)}px)` +
-                        ` rotate(${d.rot.toFixed(1)}deg) scale(${((d.sel ? 1.15 : 1)*(1+z*.3)).toFixed(3)})`;
-    const air = z > .1;
-    if(n._air !== air){ n._air = air; n.classList.toggle('air', air); }
-    if(n._face !== d.face){ n._face = d.face; n.querySelector('use').setAttribute('href', '#die-'+d.face); }
+                        ` scale(${((d.sel ? 1.15 : 1)*(1+z*.26)).toFixed(3)})`;
+    n._cube = n._cube || n.querySelector('.cube');
+    n._cube.style.transform = `rotate(${d.rot.toFixed(1)}deg)` +
+                              ` rotateX(${d.rx.toFixed(1)}deg) rotateY(${d.ry.toFixed(1)}deg)`;
   });
 }
 /* rebuild the board from the saved state — undo, redo, resume and resize all land here */
@@ -2172,12 +2255,16 @@ function vSync(){
   layer.innerHTML = '';
   V.dice = vr.vals.map((v,i)=>{
     const p = vDenorm(vr.pos[i] || [.5,.5,0]);
-    const d = {v, face:v, sel:!!(vr.sel && vr.sel[i]), rot:(vr.pos[i]||[0,0,0])[2]||0,
-               x:p.x, y:p.y, vx:0, vy:0, vrot:0, moving:false};
+    const d = {v, sel:!!(vr.sel && vr.sel[i]), rot:(vr.pos[i]||[0,0,0])[2]||0,
+               x:p.x, y:p.y, vx:0, vy:0, vrot:0, moving:false,
+               z:0, vz:0, rx:0, ry:0, wx:0, wy:0};
+    const pose = CUBE_POSE[v][0] || [0,0];        // already lying still, showing what it rolled
+    d.rx = pose[0]; d.ry = pose[1];
     d.node = vNode();
     d.node.classList.toggle('sel', d.sel);
     d.node.onclick = () => vTap(i);
     layer.append(d.node);
+    vLight(d, v);                                 // it's already lying still, not tumbling
     return d;
   });
   vPaint();
@@ -2321,7 +2408,9 @@ function vRoll(){
                  x:cx + R(-16,16), y:cy + R(-8,8),
                  vx:Math.cos(a)*sp*R(.85,1.6), vy:Math.sin(a)*sp,
                  rot:R(0,360), vrot:R(-30,30), moving:true,
-                 z:R(.1,.45), vz:R(.10,.22), spin:R(0,1)};   // …and up out of the mouth of the cup
+                 z:R(.1,.45), vz:R(.10,.22),                  // …and up out of the mouth of the cup
+                 // which way it's tumbling, and how fast per unit of travel
+                 rx:R(0,360), ry:R(0,360), wx:R(-3.6,3.6), wy:R(-3.6,3.6)};
       d.node = vNode();
       d.node.onclick = () => vTap(i);
       layer.append(d.node);
@@ -2331,7 +2420,7 @@ function vRoll(){
     read.textContent = 'rolling…';
     if(easy){                               // no tumbling for anyone who asked for less of it
       const pad = S*.62;
-      V.dice.forEach(d=>{ d.moving = false; d.face = d.v; d.vx = d.vy = d.vrot = 0; d.z = d.vz = 0;
+      V.dice.forEach(d=>{ d.vx = d.vy = d.vrot = 0; vRest(d);
         d.x = pad + Math.random()*(b.w-2*pad); d.y = pad + Math.random()*(b.h-2*pad); });
       for(let k=0;k<18;k++) vSeparate();
       vPaint(); vSettled(); return;
@@ -2381,7 +2470,7 @@ function vSeparate(){
       A.vrot += R(-16,16) + t*5; B.vrot += R(-16,16) - t*5;
       A.z = Math.max(A.z||0, Math.min(.4, p*.02)); // and a knock can kick a die up off the felt
       B.z = Math.max(B.z||0, Math.min(.4, p*.02));
-      A.moving = B.moving = true;
+      vWake(A); vWake(B);
       vClack();
     }
   }
@@ -2424,23 +2513,24 @@ function vStep(){
     if(d.x > b.w-r)  { d.x = b.w-r;  d.vx = -Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y < r)      { d.y = r;      d.vy =  Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y > b.h-r)  { d.y = b.h-r;  d.vy = -Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
-    // faces turn over at the speed the die is going, so the flicker slows as it dies away
-    d.spin += Math.hypot(d.vx, d.vy)*.085 + Math.abs(d.vrot)*.006;
-    if(d.spin >= 1){ d.spin = 0; d.face = RI(1,6); }
-    if(Math.hypot(d.vx, d.vy) < .4 && d.z <= 0){ d.moving = false; d.z = 0; d.face = d.v; }
+    // it tumbles end over end at the speed it's travelling, so the turning winds down
+    // with the die rather than strobing at a fixed rate right up to the stop
+    const sp = Math.hypot(d.vx, d.vy);
+    d.rx += d.wx * sp; d.ry += d.wy * sp;
+    if(sp < .4 && d.z <= 0) vRest(d);              // down, still, and showing what it rolled
     else live = true;
   });
   vSeparate();
   vPaint();
   if(live && V.tick < 260){ V.raf = requestAnimationFrame(vStep); return; }
   V.raf = 0;
-  V.dice.forEach(d=>{ d.moving = false; d.z = 0; d.face = d.v; });
+  V.dice.forEach(d => { if(d.moving) vRest(d); });
   vSettled();
 }
 function vSettled(){
   V.raf = 0;
   if(!vOn()){ V.lock = false; return; }
-  V.dice.forEach(d=>{ d.vx = d.vy = d.vrot = 0; d.z = d.vz = 0; });   // nothing still shoving
+  V.dice.forEach(d=>{ d.vx = d.vy = d.vrot = 0; if(d.moving) vRest(d); });   // nothing still shoving
   for(let k=0;k<18;k++) vSeparate();
   vPaint();
   const vals = V.dice.map(d => d.v);

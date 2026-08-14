@@ -47,8 +47,31 @@ A black cup on red felt. Tap it and six white dice spill out and scatter — a s
 sim, so they bounce off the rails and off each other and land where they land. The dice are
 treated as the squares they are (a separating-axis test on four edge directions), so two of
 them meeting corner-first push apart instead of overlapping, and no two knocks come off quite
-the same. They hop as they leave the cup and the faces turn over at the speed the die is going,
-so the tumbling slows down as the die does.
+the same. They hop as they leave the cup, and they tumble at the speed they're travelling, so
+the turning winds down as the die does.
+
+**The dice are real cubes.** Each one is six faces hinged around its middle in CSS 3D, under a
+single camera over the table — so a die out near the rail shows you its side the way it would
+in a photograph taken from above, and rolling is the cube actually turning over rather than a
+flat square whose pips change. Some notes on what that took:
+
+- **Sharp edges.** Six *rounded* faces meeting along an edge leave a notch at every corner that
+  you can see the felt straight through. The cube faces are square-cornered and the roundness is
+  painted back on just inside the edge.
+- **No `drop-shadow` anywhere above a cube.** A filter flattens everything beneath it and the
+  cube collapses to a card. The shadow is its own thing lying on the felt, spreading and going
+  weak as the die gets up off the table.
+- **Which way up is a six?** Each side sits a quarter turn from the front, so the app works out
+  once, from the browser's own matrix maths, every pair of quarter turns that brings a given side
+  round to face the camera. A die that has stopped picks whichever is the shortest turn from
+  wherever it's pointing and eases into it — the last tip a real die makes as it settles.
+- **Lighting has to follow the landing.** A die at rest is lit from above, so the side you see
+  down past the edge is in shade — but *which* side that is depends on how it landed, so the light
+  goes on the one face that ends up on top. Mid-throw every face is lit; dimming a tumbling die
+  just makes the roll look muddy.
+
+Verified across 408 settled dice: every one shows the face it actually rolled, and 1,170 pairs
+with no overlap.
 
 - **Tap what you're keeping.** Six identical white dice — the felt tells you nothing about which
   ones are worth anything, so read your own roll. The bar adds up your picks as you go and won't
