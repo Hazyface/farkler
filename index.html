@@ -1071,33 +1071,8 @@ function kaChing(pts){
   coins(Math.min(7, 2 + Math.floor((pts||0)/400)), .3);
 }
 
-/* ---- let it ride: a quiet ticking loop while the table holds its breath ---- */
-let suspense = null;
-function suspenseBar(t0){
-  const c = ctx();
-  // four low pulses and a woodblock tick, Jeopardy-ish but ours
-  [0,.5,1,1.5].forEach((d,i)=>{
-    tone({freq:[196,220,247,220][i], dur:.34, delay:t0+d, type:'triangle', vol:.055});
-    tone({freq:[98,110,123,110][i],  dur:.34, delay:t0+d, type:'sine',     vol:.045});
-    noise(.03, .022, t0+d+.25, 2600, 'bandpass');
-  });
-}
-function startSuspense(){
-  if(suspense || !soundOn) return;
-  suspenseBar(0);
-  suspense = setInterval(()=> suspenseBar(0), 2000);
-}
-function stopSuspense(){ if(suspense){ clearInterval(suspense); suspense = null; } }
-// the music holds only until the next press — state-backed so undo/redo bring the tension back
-function syncSuspense(){
-  if(G && G.riding && G.tense && !G.over && soundOn) startSuspense(); else stopSuspense();
-}
-function breakTense(scored){
-  stopSuspense();
-  if(!G || !G.tense) return;
-  G.tense = false;
-  if(scored) rideCheer();                       // they picked it up and immediately scored
-}
+/* ---- let it ride ---- */
+// the first score on a borrowed pot: they picked it up and made it pay
 function rideCheer(){
   for(let i=0;i<12;i++) noise(.3+Math.random()*.3, .04, Math.random()*.22, 900+Math.random()*1800, 'bandpass');
   [880,1175,1568].forEach((f,i)=> tone({freq:f, dur:.22, delay:i*.06, type:'triangle', vol:.13}));
@@ -1152,11 +1127,10 @@ const CRUDE_NOPE = [
 ];
 
 const S = {
-  tap(){ breakTense(false); pick(CRUDE_TAP)(); },   // any other button kills the music too
+  tap(){ pick(CRUDE_TAP)(); },
   // the same button always makes the same noise
   score(id, pts){ (SCORE_SFX[id] ? SCORE_SFX[id].bind(SCORE_SFX) : SCORE_SFX.fallback)(pts); },
   bank(pts, wasRiding){
-    stopSuspense();
     if(wasRiding){ cheer(); kaChing(pts); }      // they went for it and made it
     else kaChing(pts);
   },
@@ -1178,13 +1152,12 @@ const S = {
   ])(); },
   // and bad things sound bad
   farkle(wasRiding){
-    stopSuspense();
     pick(CRUDE_FARKLE)();
     if(wasRiding) crowdAww(.35);                 // they went for it and blew it
   },
   nope(){ pick(CRUDE_NOPE)(); },
-  undo(){ breakTense(false); tone({freq:520, slide:300, dur:.14, type:'sine', vol:.16}); },
-  redo(){ breakTense(false); tone({freq:300, slide:560, dur:.14, type:'sine', vol:.16}); },
+  undo(){ tone({freq:520, slide:300, dur:.14, type:'sine', vol:.16}); },
+  redo(){ tone({freq:300, slide:560, dur:.14, type:'sine', vol:.16}); },
   turn(){
     if(Math.random()<.25) return raspberry();
     tone({freq:440, dur:.1, type:'sine', vol:.14});
@@ -1450,8 +1423,7 @@ function startGame(list, opts){
     vr: {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]},   // what's lying on the felt
     cur:0, pot:0, tape:[], lastCaller:null, over:false,
     table:null,      // what the last banker left behind: {from, pts, dice}
-    riding:false,    // this turn was picked up from the table
-    tense:false      // ...and the suspense music is still holding
+    riding:false     // this turn was picked up from the table
   };
   past = []; future = [];
   vAbort();
@@ -1484,7 +1456,6 @@ function step(){
 function applyState(json){
   vAbort();                     // a throw still in the air belongs to the state we just left
   G = JSON.parse(json);
-  G.tense = false;              // you pressed a key to get here, so the music stays off
   $('#callOvl').classList.remove('on');
   $('#rideOvl').classList.remove('on');
   render(); save();
@@ -1601,7 +1572,7 @@ function ridingUnearned(){ return !!G.riding && !G.tape.some(x => !x.ride); }
 
 function addScore(lab, pts, icon, id, dice, quiet){
   if(G.over) return;
-  breakTense(true);
+  if(ridingUnearned()) rideCheer();   // the borrowed pot just became worth something
   if(!quiet) step();          // the felt board records one step for a whole handful
   const setsBefore = Math.floor(diceUsed() / 6);
   G.tape.push({lab, pts, dice: dice||0, icon: icon || {emoji:'🎲'}});
@@ -1725,8 +1696,7 @@ function render(){
   $('#game').classList.toggle('over', !!G.over);
   $('#bankBtn').disabled = false;   // only the felt board ever locks it, and it re-decides below
   paintSteps();
-  syncSuspense();   // the ride music follows the state, so undo and redo control it too
-  vSync();          // …and so does the felt board
+  vSync();          // the felt board follows the state, so undo and redo control it too
 }
 
 /* ---------- turn actions ---------- */
@@ -1735,7 +1705,7 @@ function doFarkle(){
   step();
   const p = G.players[G.cur], wasRiding = !!G.riding;
   p.turns.push(0); p.rode.push(wasRiding);
-  G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
+  G.pot = 0; G.tape = []; G.riding = false;
   G.table = null;                       // farkled dice are dead — nothing to ride
   vClear();
   S.farkle(wasRiding);
@@ -1768,7 +1738,7 @@ function doBank(){
   // how far into the current set of six they got — that's what the next player inherits
   const spent = diceUsed() % 6;
   p.turns.push(banked); p.rode.push(wasRiding);
-  G.pot = 0; G.tape = []; G.riding = false; G.tense = false;
+  G.pot = 0; G.tape = []; G.riding = false;
   G.table = G.letRide ? {from:G.cur, pts:banked, spent} : null;   // banking always leaves something to ride
   vClear();
   S.bank(banked, wasRiding);
@@ -1805,7 +1775,6 @@ $('#rideTake').onclick = () => {
   $('#rideOvl').classList.remove('on');
   step();
   G.riding = true;
-  G.tense = true;                       // suspense music until they press something
   G.pot += tbl.pts;
   // carry over the dice the last player already used, so the leftovers still finish their set of six
   G.tape.push({lab:`Rode ${G.players[tbl.from].name}'s turn`, pts:tbl.pts, dice:(tbl.spent||0),
