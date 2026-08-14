@@ -27,7 +27,8 @@ the offline copy took.
 
 ## Playing
 
-Setup asks one question that changes the whole screen: **real dice or virtual**.
+Setup opens on one question that changes the whole screen — **Where are the dice?** — answered by
+picking one of two tiles: on the table, or in the app. It remembers what you picked last time.
 
 ### Real dice
 

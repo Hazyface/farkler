@@ -112,6 +112,33 @@
   .switch.on::after{left:31px;background:#fff}
   .hint{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.4}
 
+  /* the first thing to decide: is the app keeping score, or rolling the dice too */
+  .modepick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .mode{
+    position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;
+    padding:16px 10px 14px;border-radius:18px;background:var(--card-2);color:var(--text);
+    border:2px solid transparent;box-shadow:0 4px 0 var(--drop);transition:transform .08s,box-shadow .08s;
+  }
+  .mode:active{transform:translateY(3px);box-shadow:0 1px 0 var(--drop)}
+  .mode .mi{font-size:clamp(28px,8vw,36px);line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}
+  /* two lines are reserved either way, so both descriptions start at the same height
+     whether or not the label wraps */
+  .mode .mt{font-family:var(--display);font-weight:700;letter-spacing:.04em;font-size:clamp(15px,4.3vw,19px);
+            line-height:1.15;min-height:2.3em;display:grid;place-items:center}
+  .mode .md{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .mode.sel{
+    background:linear-gradient(#2c503f,#1d3a2e);border-color:var(--gold);
+    box-shadow:0 4px 0 var(--drop), 0 0 0 4px rgba(255,203,71,.13), 0 8px 20px rgba(0,0,0,.35);
+  }
+  .mode.sel .mt{color:var(--gold)}
+  .mode.sel .md{color:#c8ddd2}
+  /* the tick sits in the corner so the choice reads at a glance, not just by colour */
+  .mode.sel::after{
+    content:"✓";position:absolute;top:-9px;right:-7px;width:24px;height:24px;border-radius:99px;
+    background:var(--gold);color:#241a00;font-size:14px;font-weight:700;display:grid;place-items:center;
+    box-shadow:0 2px 5px rgba(0,0,0,.5);
+  }
+
   /* reorder handles */
   .ord{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
   .ord button{width:30px;height:20px;border-radius:7px;background:var(--card-2);color:var(--muted);font-size:11px;line-height:1;padding:0}
@@ -538,6 +565,22 @@
   </div>
 
   <div class="card">
+    <h2>Where are the dice?</h2>
+    <div class="modepick" role="radiogroup" aria-label="Where are the dice?">
+      <button class="mode sel" id="modeReal" role="radio" aria-checked="true">
+        <span class="mi">✍️</span>
+        <span class="mt">ON THE TABLE</span>
+        <span class="md">You roll real dice — tap what you got and Farkler keeps score.</span>
+      </button>
+      <button class="mode" id="modeApp" role="radio" aria-checked="false">
+        <span class="mi">🎲</span>
+        <span class="mt">IN THE APP</span>
+        <span class="md">Shake a cup onto a felt board — it scores the roll for you.</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>Who's playing?</h2>
     <div class="plist" id="plist"></div>
     <button class="btn ghost wide" id="addPlayer" style="margin-top:12px">➕ Add player</button>
@@ -559,12 +602,6 @@
       <label for="letride">🎠 Let it ride (roll with greed)</label>
       <div class="switch on" id="letride" role="switch" aria-checked="true" tabindex="0"></div>
     </div>
-    <div class="opt">
-      <label for="virtual">🎲 Virtual dice (roll in the app)</label>
-      <div class="switch" id="virtual" role="switch" aria-checked="false" tabindex="0"></div>
-    </div>
-    <div class="hint">Off, you roll real dice and tap what you got. On, you get a felt board and a cup —
-      shake it out, tap the dice you're keeping, and the app does the scoring.</div>
     <div class="hint">Once someone passes the target, everybody else gets one last turn to beat them — and if
       somebody takes the lead, the lap starts over against them. Tap a player's icon to change it, or the arrows
       to change the turn order.</div>
@@ -1402,7 +1439,22 @@ function wireSwitch(id, onChange){
 }
 wireSwitch('onboard');
 wireSwitch('letride');
-wireSwitch('virtual', on => LS.set(VDICE, on ? '1' : '0'));
+/* ---------- where the dice are: the choice that changes the whole screen ---------- */
+let vdice = LS.get(VDICE) === '1';
+function paintMode(){
+  [['modeReal', !vdice], ['modeApp', vdice]].forEach(([id, on])=>{
+    $('#'+id).classList.toggle('sel', on);
+    $('#'+id).setAttribute('aria-checked', on);
+  });
+}
+function setMode(on){
+  if(on === vdice) return;                 // tapping the one you're already on is a no-op
+  vdice = on; LS.set(VDICE, on ? '1' : '0');
+  S.tap(); paintMode();
+}
+$('#modeReal').onclick = () => setMode(false);
+$('#modeApp').onclick  = () => setMode(true);
+paintMode();
 $('#start').onclick = () => {
   lineup.forEach((p,i)=>{ p.name = (p.name||'').trim() || 'Player '+(i+1); });
   remember(lineup);
@@ -1410,7 +1462,7 @@ $('#start').onclick = () => {
     target: Math.max(500, parseInt($('#target').value)||10000),
     minOnBoard: $('#onboard').classList.contains('on') ? 500 : 0,
     letRide: $('#letride').classList.contains('on'),
-    virtual: $('#virtual').classList.contains('on')
+    virtual: vdice
   });
 };
 
@@ -2395,7 +2447,6 @@ $('#soundBtn').textContent = soundOn ? '🔊' : '🔇';
 document.body.insertAdjacentHTML('afterbegin', diceSprite());
 loadRoster();
 loadRules();
-if(LS.get(VDICE) === '1'){ $('#virtual').classList.add('on'); $('#virtual').setAttribute('aria-checked','true'); }
 // start with the last crew if we know one, otherwise two blank seats
 lineup = roster.slice(-2).map(r=>({name:r.name, emoji:r.emoji, color:r.color}));
 while(lineup.length < 2) lineup.push(newPlayer());
