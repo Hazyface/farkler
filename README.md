@@ -44,7 +44,11 @@ Tap a button for each scoring combo you roll; they stack up in the pot. **Bank i
 ### Virtual dice
 
 A black cup on red felt. Tap it and six white dice spill out and scatter — a small collision
-sim, so they bounce off the rails and off each other and land where they land.
+sim, so they bounce off the rails and off each other and land where they land. The dice are
+treated as the squares they are (a separating-axis test on four edge directions), so two of
+them meeting corner-first push apart instead of overlapping, and no two knocks come off quite
+the same. They hop as they leave the cup and the faces turn over at the speed the die is going,
+so the tumbling slows down as the die does.
 
 - **Tap what you're keeping.** Six identical white dice — the felt tells you nothing about which
   ones are worth anything, so read your own roll. The bar adds up your picks as you go and won't
@@ -61,6 +65,37 @@ sim, so they bounce off the rails and off each other and land where they land.
 
 Everything else — banking, letting it ride, house rules, undo, the scoresheet — works exactly the
 same. Undo steps back through throws and set-asides the way it steps through button presses.
+
+### Rollerbots
+
+Tap the 🤖 beside a name and the app plays that seat, so you can play on your own. A Rollerbot
+always rolls on the felt, even in a game where the people are using real dice — it can't very
+well pick up the ones on your table. It shakes the cup, picks its dice up one at a time, and the
+bar under the felt says what it's doing and why.
+
+The interesting part is what it keeps. Taking every die that scores is the beginner's mistake:
+a 1 with three 2s is 300 points all in, but keeping *just the 1* is worth about 400, because
+five dice to throw beats two. Each bot works this out from the actual odds — every way its dice
+could land, every legal handful it could keep, and what the rest of the turn is worth after each
+one. The only thing that separates them is how much of an edge they need before they'll risk
+the pot:
+
+| | |
+| --- | --- |
+| 🐢 **Careful** | Good picks, then quits while it's ahead. Stops on three dice. |
+| 🤖 **Steady** | Plays it straight — rolls whenever rolling is worth more than banking. |
+| 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
+| 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
+
+Over a few hundred thousand simulated turns, Careful averages 588 a turn, Steady 602, and the
+Gambler 578 with a farkle rate of 38% against the others' 15–21%. Head to head, Steady beats
+Careful about 53–47 and the Gambler about 54–46.
+
+They know the rules they're playing under, too: a bot that isn't on the board keeps rolling
+until it can bank the opening 500, one chasing a leader on the last lap won't bank anything
+short of the lead, and one that can cross the target takes it. Undo during a bot's turn parks
+it rather than letting it instantly replay the move you just took back — tap the bar under the
+felt to set it going again.
 - **Let it ride** — when someone banks, the next player can pick up their total and keep rolling
   with the dice left on the table. Score and it's theirs; farkle and it's gone.
 - **Finishing** — first past the target starts the last lap. Everyone else gets one turn to take

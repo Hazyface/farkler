@@ -553,6 +553,35 @@
   .act:disabled{opacity:.34}
   .act.roll{background:linear-gradient(#8fd0ff,#2a71c8);color:#04222f}
   .act.roll small{display:block;font-family:var(--font);font-size:12px;font-weight:700;letter-spacing:0;opacity:.8}
+
+  /* ---------------- ROLLERBOTS ---------------- */
+  .botbtn{width:38px;height:38px;border-radius:12px;flex:0 0 auto;background:var(--card-2);
+          font-size:17px;opacity:.4;filter:grayscale(1);padding:0}
+  .botbtn.on{opacity:1;filter:none;background:linear-gradient(#3d4f6b,#27354a);
+             box-shadow:inset 0 0 0 1px rgba(140,190,255,.5)}
+  .botbtn:active{transform:translateY(2px)}
+  /* the level picker, folded out under the row it belongs to */
+  .botrow{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin:-4px 0 0 54px}
+  @media (min-width:620px){ .botrow{grid-template-columns:repeat(4,1fr)} }
+  .lvl{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;
+       background:var(--card-2);border:1px solid var(--line);border-radius:11px;padding:6px 8px;
+       font-size:12px;font-weight:700;color:var(--muted);line-height:1.15}
+  .lvl .li{font-size:15px}
+  .lvl .ld{font-size:10px;font-weight:600;opacity:.75;letter-spacing:0}
+  .lvl.on{background:linear-gradient(#3d4f6b,#27354a);color:#dceaff;border-color:rgba(140,190,255,.55)}
+  .lvl:active{transform:translateY(1px)}
+  /* a bot at the table: the felt says what it is doing, and nothing there is tappable */
+  .botturn .vread{border-color:rgba(140,190,255,.55);color:#dceaff}
+  .botturn .vread b{color:#8fd0ff}
+  .botturn .dielayer{pointer-events:none}
+  .botturn #houseBtn{display:none}         /* nobody adds a house rule on the robot's turn */
+  .botturn .who .wname::after{content:"⋯";margin-left:6px;color:#8fd0ff;
+                              animation:botblink 1.1s ease-in-out infinite}
+  @keyframes botblink{0%,100%{opacity:1}50%{opacity:.3}}
+  /* the die it has just decided to keep gets picked up in front of you */
+  .vdie.botpick .ring{border-color:#8fd0ff;box-shadow:0 0 18px rgba(143,208,255,.9)}
+  /* height, faked: a die in the air throws a longer shadow than one on the felt */
+  .vdie.air{filter:drop-shadow(0 16px 15px rgba(0,0,0,.5))}
 </style>
 </head>
 <body>
@@ -583,7 +612,11 @@
   <div class="card">
     <h2>Who's playing?</h2>
     <div class="plist" id="plist"></div>
-    <button class="btn ghost wide" id="addPlayer" style="margin-top:12px">➕ Add player</button>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn ghost wide" id="addPlayer" style="margin-top:0">➕ Add player</button>
+      <button class="btn ghost wide" id="addBot" style="margin-top:0">🤖 Add a Rollerbot</button>
+    </div>
+    <div class="hint">Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.</div>
 
     <div id="benchWrap" style="display:none">
       <h3>🪑 On the bench — tap to add back</h3>
@@ -755,6 +788,21 @@
         <li>Not feeling lucky? Tap ✕ and roll a fresh six.</li>
         <li>If the 500-to-get-on-the-board rule is on, nobody can ride until every player has banked their
             way onto the board.</li>
+      </ul>
+      <h3>🤖 Rollerbots</h3>
+      <ul>
+        <li>Tap the 🤖 beside a name on the setup screen and the app plays that seat. It rolls on
+            the felt whether or not anyone else is, since it can't pick up the dice on your table.</li>
+        <li><b>🐢 Careful</b> — picks its dice well, then quits while it's ahead. Stops on three.</li>
+        <li><b>🤖 Steady</b> — plays it straight: it rolls whenever rolling is worth more than banking.</li>
+        <li><b>😈 Gambler</b> — leaves dice on the table for the chance of a bigger throw, rolls on two,
+            and now and then goes for it on one. It farkles nearly twice as often as the others.</li>
+        <li><b>🤪 Screwball</b> — draws a new temperament every turn and tells you what it is. Some
+            turns it's more cautious than Careful, some turns it's barely sane, and one turn in six
+            it forgets strategy and just grabs whatever scores.</li>
+        <li>All of them work out that a 1 with three 2s is worth more as <em>just the 1</em> — 100 points
+            and five dice to throw beats 300 points and two.</li>
+        <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <div class="hint">These are the common values. Every table has its own twists — tap <b>House rule</b> to name your own
         (three 2s are worth what?) and it becomes a button you keep.</div>
@@ -1318,7 +1366,7 @@ function saveRoster(){ LS.set(ROSTER, JSON.stringify(roster)); }
 function remember(players){
   players.forEach(p=>{
     const name = (p.name||'').trim();
-    if(!name || isDefaultName(name)) return;      // don't clutter the bench with "Player 2"
+    if(!name || isDefaultName(name) || p.bot) return;   // no "Player 2", and no robots on the bench
     const hit = roster.find(r => r.name.toLowerCase() === name.toLowerCase());
     if(hit){ hit.name = name; hit.emoji = p.emoji; hit.color = p.color; }
     else roster.push({name, emoji:p.emoji, color:p.color});
@@ -1375,6 +1423,12 @@ function renderPlayers(){
     inp.oninput = () => { p.name = inp.value; renderBench(); };
     row.append(chip, inp);
 
+    // hand the seat to the app, or take it back
+    const bb = el('button','botbtn' + (p.bot ? ' on' : ''), '🤖');
+    bb.title = p.bot ? 'Let a person play this seat' : 'Let a Rollerbot play this seat';
+    bb.onclick = () => { S.tap(); setBot(p, p.bot ? null : 'steady'); renderPlayers(); };
+    row.append(bb);
+
     // turn order
     const ord = el('div','ord');
     const up = el('button', null, '▲'), dn = el('button', null, '▼');
@@ -1392,8 +1446,41 @@ function renderPlayers(){
     }
     if(i === justMoved) row.classList.add('moved');
     wrap.append(row);
+
+    if(p.bot){
+      const lv = el('div','botrow');
+      Object.keys(BOTS).forEach(k=>{
+        const b = BOTS[k];
+        const btn = el('button','lvl' + (p.bot===k ? ' on' : ''),
+          `<span class="li">${b.icon} ${b.name}</span><span class="ld">${b.tag}</span>`);
+        btn.onclick = () => { S.tap(); setBot(p, k); renderPlayers(); };
+        lv.append(btn);
+      });
+      wrap.append(lv);
+    }
   });
   renderBench();
+}
+/* turning a seat over to the app: it takes a robot name and a face to match, and gives
+   them back if a person wants the seat again */
+function setBot(p, level){
+  const was = p.bot;
+  p.bot = level;
+  if(level){
+    if(!was && (isDefaultName(p.name) || !p.name.trim())) p.name = freeBotName();
+    // the face follows the level unless they've picked one themselves
+    if(!was || p.emoji === BOTS[was].icon) p.emoji = BOTS[level].icon;
+  } else if(was){
+    if(/^rollerbot( \d+)?$/i.test((p.name||'').trim())) p.name = 'Player '+(lineup.indexOf(p)+1);
+    if(p.emoji === BOTS[was].icon) p.emoji = freeEmoji();
+  }
+}
+function freeBotName(){
+  const used = lineup.map(x => (x.name||'').trim().toLowerCase());
+  for(let n=1;;n++){
+    const name = n === 1 ? 'Rollerbot' : 'Rollerbot ' + n;
+    if(!used.includes(name.toLowerCase())) return name;
+  }
 }
 function renderBench(){
   const inGame = lineup.map(p => (p.name||'').trim().toLowerCase());
@@ -1428,6 +1515,14 @@ $('#addPlayer').onclick = () => {
   S.tap(); lineup.push(newPlayer()); renderPlayers();
   const inputs = document.querySelectorAll('#plist input');
   inputs[inputs.length-1].focus(); inputs[inputs.length-1].select();
+};
+$('#addBot').onclick = () => {
+  if(lineup.length >= 8){ S.nope(); return; }
+  S.tap();
+  const p = newPlayer();
+  lineup.push(p);
+  setBot(p, 'steady');
+  renderPlayers();
 };
 function wireSwitch(id, onChange){
   const sw = $('#'+id);
@@ -1469,7 +1564,7 @@ $('#start').onclick = () => {
 /* ---------- game lifecycle ---------- */
 function startGame(list, opts){
   G = {
-    players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji, turns:[], rode:[]})),
+    players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji, bot:p.bot||null, turns:[], rode:[]})),
     target: opts.target, minOnBoard: opts.minOnBoard, letRide: opts.letRide,
     virtual: !!opts.virtual,
     vr: {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]},   // what's lying on the felt
@@ -1487,6 +1582,7 @@ function startGame(list, opts){
   render();
   S.turn();
   save();
+  botKick(900);
 }
 function show(which){
   $('#setup').classList.toggle('on', which==='setup');
@@ -1716,7 +1812,7 @@ function render(){
                         `<div class="wsub">${fmt(t)} pts${need}${dice}${rode}${held}${chase}</div>`;
 
   $('#pot').innerHTML = `${G.pot}<small>IN THE POT</small>`;
-  $('#bankSub').textContent = G.pot ? `${t} → ${t + G.pot}` : '';
+  $('#bankSub').textContent = bankNote(G.pot);
 
   const tape = $('#tape'); tape.innerHTML = '';
   let rolled = 0, sets = 0;                      // to mark where the dice came back fresh
@@ -1726,7 +1822,7 @@ function render(){
       `<span class="tp${x.pts<0?' neg':''}">${x.pts>0?'+':''}${x.pts}</span>`);
     // on the felt board the tally is a record, not an input — pulling a combo back out would
     // hand the dice it used back to the table. Undo is the way out of a misclick there.
-    if(G.virtual) tag.title = x.lab;
+    if(vOn()) tag.title = x.lab;
     else {
       tag.title = x.lab + ' — tap to remove';
       tag.onclick = () => { step(); S.undo(); G.pot -= x.pts; G.tape.splice(i,1); render(); save(); };
@@ -1746,7 +1842,9 @@ function render(){
   if(row) gw.scrollTop = Math.max(0, row.offsetTop - gw.clientHeight + row.offsetHeight + 4);
 
   $('#game').classList.toggle('over', !!G.over);
-  $('#bankBtn').disabled = false;   // only the felt board ever locks it, and it re-decides below
+  // nothing bankable, not on the board yet, riding a pot you haven't scored on, or it isn't
+  // your table at all — the felt board re-decides this for itself in vChrome
+  $('#bankBtn').disabled = !!curBot() || !G.pot || shortOfBoard(G.pot) || ridingUnearned();
   paintSteps();
   vSync();          // the felt board follows the state, so undo and redo control it too
 }
@@ -1766,19 +1864,23 @@ function doFarkle(){
 }
 $('#farkleBtn').onclick = doFarkle;
 $('#bankBtn').onclick = () => {
-  if(G.over) return;
-  // whatever's still lit up on the felt counts — bank means bank
-  if(vOn() && V.dice.some(d => d.sel) && !vCommit()) return;
-  const p = G.players[G.cur], t = total(p);
-  if(G.pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
-  if(ridingUnearned()){                            // checked after the felt board commits
-    S.nope(); bump($('#bankBtn'));
-    toast('SCORE ON IT FIRST 🎠');
-    return;
-  }
-  if(G.minOnBoard && t === 0 && G.pot < G.minOnBoard){
+  if(G.over || curBot()) return;
+  // whatever's still lit up on the felt counts — bank means bank. But work out what it would
+  // come to *before* setting any of it aside: refusing afterwards takes the dice off the felt
+  // and can leave you holding a handful that scores nothing, with no legal move left.
+  const sel = vOn() ? V.dice.filter(d => d.sel) : [];
+  const dec = sel.length ? decompose(countsOf(sel.map(d => d.v))) : null;
+  const pot = G.pot + (dec ? dec.pts : 0);
+  if(pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
+  if(shortOfBoard(pot)){
     S.nope(); bump($('#bankBtn'));
     toast(`GET ON THE BOARD, ${G.minOnBoard} 🚪`);
+    return;
+  }
+  if(sel.length && !vCommit()) return;
+  if(ridingUnearned()){                            // only true now if they set nothing aside
+    S.nope(); bump($('#bankBtn'));
+    toast('SCORE ON IT FIRST 🎠');
     return;
   }
   doBank();
@@ -1815,13 +1917,14 @@ function rideAvailable(){
 }
 function maybeOfferRide(){
   if(!rideAvailable()) return;
+  if(curBot()) return;                 // a Rollerbot answers this itself, at the top of its turn
   const tbl = G.table;
   $('#ridePot').textContent = fmt(tbl.pts);
   $('#freshDice').innerHTML = [1,2,3,4,5,6].map(n => `<svg class="die"><use href="#die-${n}"/></svg>`).join('');
   $('#rideOvl').classList.add('on');
   S.offer();
 }
-$('#rideTake').onclick = () => {
+function takeRide(){
   const tbl = G.table;
   if(!tbl || G.over) return;
   $('#rideOvl').classList.remove('on');
@@ -1835,11 +1938,13 @@ $('#rideTake').onclick = () => {
   S.ride();
   toast(pick(['LET IT RIDE! 🎠','GREEDY! 😈','YOINK! 🤲','MINE NOW 😈']));
   render(); save();
-};
-$('#rideNo').onclick = () => {
+}
+function passRide(){
   $('#rideOvl').classList.remove('on');
   step(); S.tap(); G.table = null; render(); save();
-};
+}
+$('#rideTake').onclick = takeRide;
+$('#rideNo').onclick = passRide;
 
 /* ---------- last call: spell out what everyone is playing for ---------- */
 function showLastCall(kind, callerIdx){
@@ -1871,12 +1976,14 @@ function showLastCall(kind, callerIdx){
 $('#callGo').onclick = () => { S.tap(); $('#callOvl').classList.remove('on'); };
 
 function nextPlayer(){
+  botStop(); botHold = false; botMood = null;
   G.cur = (G.cur + 1) % G.players.length;
   if(G.lastCaller !== null && G.cur === G.lastCaller){ endGame(); return; }
   render(); save();
   $('#pad').scrollTop = 0;   // the big 1 and 5 buttons greet the next player
   setTimeout(()=> { if(!G.over) S.turn(); }, 750);
   setTimeout(maybeOfferRide, 900);   // after the previous player's banking noise has landed
+  botKick(900);
 }
 function bump(node){ node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); }
 function toast(msg){
@@ -1885,15 +1992,19 @@ function toast(msg){
 }
 
 /* ---------- undo / redo ---------- */
+/* stepping back into a Rollerbot's turn parks it: it would otherwise replay the move you
+   just took back, faster than you can press undo again. Tap the felt to set it going. */
 $('#undoBtn').onclick = () => {
   if(!past.length){ S.nope(); return; }
   future.push(JSON.stringify(G));
+  botHold = true;
   applyState(past.pop());
   S.undo();
 };
 $('#redoBtn').onclick = () => {
   if(!future.length){ S.nope(); return; }
   past.push(JSON.stringify(G));
+  botHold = true;
   applyState(future.pop());
   S.redo();
 };
@@ -2003,12 +2114,15 @@ const V = {dice:[], raf:0, lock:false, tick:0, lastClack:0, gen:0};
 function vAbort(){
   V.gen++;
   V.lock = false;
+  botStop();
   if(V.raf){ cancelAnimationFrame(V.raf); V.raf = 0; }
   const fly = document.querySelector('#flylayer'); if(fly) fly.innerHTML = '';
 }
 const easy = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
 
-const vOn   = () => !!(G && G.virtual);
+// a Rollerbot can't pick up the dice on your table, so it always rolls on the felt —
+// even in a game where the people are using real ones
+const vOn   = () => !!(G && (G.virtual || (!G.over && !!G.players[G.cur].bot)));
 const vBox  = () => { const s = $('#surface'); return {w:s.clientWidth||320, h:s.clientHeight||220}; };
 const vSize = () => { const b = vBox(); return Math.max(28, Math.min(70, Math.min(b.w*.155, b.h*.235))); };
 function vClear(){ if(G) G.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]}; }
@@ -2035,17 +2149,24 @@ function vDenorm(p){
 function vPaint(){
   const S = vSize();
   V.dice.forEach(d=>{
-    const n = d.node;
+    const n = d.node, z = d.z || 0;
     n.style.width = n.style.height = S + 'px';
+    // height is faked the way it reads on a table from above: a die in the air is nearer
+    // the eye, so it's bigger, and its shadow drops further behind it
     n.style.transform = `translate(${(d.x-S/2).toFixed(1)}px,${(d.y-S/2).toFixed(1)}px)` +
-                        ` rotate(${d.rot.toFixed(1)}deg) scale(${d.sel ? 1.15 : 1})`;
+                        ` rotate(${d.rot.toFixed(1)}deg) scale(${((d.sel ? 1.15 : 1)*(1+z*.3)).toFixed(3)})`;
+    const air = z > .1;
+    if(n._air !== air){ n._air = air; n.classList.toggle('air', air); }
     if(n._face !== d.face){ n._face = d.face; n.querySelector('use').setAttribute('href', '#die-'+d.face); }
   });
 }
 /* rebuild the board from the saved state — undo, redo, resume and resize all land here */
 function vSync(){
   $('#game').classList.toggle('virtual', vOn());
-  if(!vOn() || V.raf || V.lock) return;
+  $('#game').classList.toggle('botturn', !!curBot());
+  if(V.raf || V.lock) return;
+  // handing the table back to a person in a real-dice game: clear the felt behind the bot
+  if(!vOn()){ $('#dielayer').innerHTML = ''; V.dice = []; return; }
   const vr = G.vr || (vClear(), G.vr);
   const layer = $('#dielayer');
   layer.innerHTML = '';
@@ -2070,6 +2191,19 @@ function vChrome(){
   const read = $('#vread'), roll = $('#rollBtn'), bank = $('#bankBtn'), me = G.players[G.cur];
 
   $('#cup').classList.toggle('hide', onTable > 0 || V.lock || G.over);
+
+  if(curBot()){                                  // a bot's turn: the line narrates, nothing takes taps
+    read.classList.remove('tapme','bad');
+    read.onclick = null;
+    if(botHold){
+      read.innerHTML = `⏸ <b>${esc(me.name)}</b> is parked — tap to let it play`;
+      read.classList.add('tapme');
+      read.onclick = () => { S.tap(); botHold = false; botKick(120); };
+    } else if(BOT.say) read.innerHTML = BOT.say;
+    roll.disabled = bank.disabled = true;
+    $('#bankSub').textContent = G.pot ? `${fmt(total(me))} → ${fmt(total(me) + G.pot)}` : '';
+    return;
+  }
 
   if(!V.lock){                                   // mid-throw the animation owns the line
     read.classList.remove('tapme','bad');
@@ -2105,11 +2239,24 @@ function vChrome(){
   const pot = G.pot + (dec ? dec.pts : 0);
   // dice already lit on the felt count as scoring on it — banking commits them first
   const unearned = ridingUnearned() && !(dec && dec.pts > 0);
-  bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec) || unearned;
-  $('#bankSub').textContent = pot ? `${fmt(total(me))} → ${fmt(total(me) + pot)}` : '';
+  const short = shortOfBoard(pot);
+  bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec) || unearned || short;
+  $('#bankSub').textContent = bankNote(pot);
+}
+// you can't bank your way onto the board with less than the opening minimum. Pressing the
+// button used to set your dice aside and *then* refuse, which could leave you holding a
+// handful that scores nothing and no legal move — so the button says no before it does that.
+function shortOfBoard(pot){
+  return !!(G.minOnBoard && total(G.players[G.cur]) === 0 && pot < G.minOnBoard);
+}
+function bankNote(pot){
+  const t = total(G.players[G.cur]);
+  if(shortOfBoard(pot)) return `need ${fmt(G.minOnBoard)} to start`;
+  if(ridingUnearned())  return 'score on it first';
+  return pot ? `${fmt(t)} → ${fmt(t + pot)}` : '';
 }
 function vTap(i){
-  if(V.lock || V.raf || !G || G.over) return;
+  if(V.lock || V.raf || !G || G.over || curBot()) return;
   const d = V.dice[i];
   if(!d) return;
   // nothing you could ever build with it. The die looks like all the others, so the
@@ -2173,7 +2320,8 @@ function vRoll(){
       const d = {v, face:RI(1,6), sel:false,
                  x:cx + R(-16,16), y:cy + R(-8,8),
                  vx:Math.cos(a)*sp*R(.85,1.6), vy:Math.sin(a)*sp,
-                 rot:R(0,360), vrot:R(-30,30), moving:true};
+                 rot:R(0,360), vrot:R(-30,30), moving:true,
+                 z:R(.1,.45), vz:R(.10,.22), spin:R(0,1)};   // …and up out of the mouth of the cup
       d.node = vNode();
       d.node.onclick = () => vTap(i);
       layer.append(d.node);
@@ -2183,34 +2331,64 @@ function vRoll(){
     read.textContent = 'rolling…';
     if(easy){                               // no tumbling for anyone who asked for less of it
       const pad = S*.62;
-      V.dice.forEach(d=>{ d.moving = false; d.face = d.v;
+      V.dice.forEach(d=>{ d.moving = false; d.face = d.v; d.vx = d.vy = d.vrot = 0; d.z = d.vz = 0;
         d.x = pad + Math.random()*(b.w-2*pad); d.y = pad + Math.random()*(b.h-2*pad); });
-      for(let k=0;k<10;k++) vSeparate();
+      for(let k=0;k<18;k++) vSeparate();
       vPaint(); vSettled(); return;
     }
     V.tick = 0;
     V.raf = requestAnimationFrame(vStep);
   }, easy ? 40 : 360);
 }
-/* dice never overlap on a real table either */
+/* Dice are square, so a round hit test was wrong in the one place it shows: two dice
+   meeting corner-first passed the distance check while their corners plainly overlapped.
+   This is the separating-axis test on the four edge directions of two rotated squares —
+   no overlap if any axis has daylight, otherwise push apart along the shallowest one. */
+const RAD = Math.PI/180;
+function vHit(A, B, h){
+  const ca = Math.cos(A.rot*RAD), sa = Math.sin(A.rot*RAD);
+  const cb = Math.cos(B.rot*RAD), sb = Math.sin(B.rot*RAD);
+  const dx = B.x - A.x, dy = B.y - A.y;
+  let gap = 1e9, nx = 0, ny = 0;
+  const axes = [[ca,sa], [-sa,ca], [cb,sb], [-sb,cb]];
+  for(let k=0;k<4;k++){
+    const ux = axes[k][0], uy = axes[k][1];
+    const d  = dx*ux + dy*uy;
+    const rA = h * (Math.abs(ca*ux + sa*uy) + Math.abs(-sa*ux + ca*uy));
+    const rB = h * (Math.abs(cb*ux + sb*uy) + Math.abs(-sb*ux + cb*uy));
+    const over = rA + rB - Math.abs(d);
+    if(over <= 0) return null;                     // daylight on this axis: they're clear
+    if(over < gap){ gap = over; nx = d < 0 ? -ux : ux; ny = d < 0 ? -uy : uy; }
+  }
+  return {gap, nx, ny};                            // normal points from A towards B
+}
 function vSeparate(){
-  const S = vSize(), min = S*.97;
+  const S = vSize(), h = S*.5;                     // exactly half a die: they touch, never overlap
   for(let i=0;i<V.dice.length;i++) for(let j=i+1;j<V.dice.length;j++){
     const A = V.dice[i], B = V.dice[j];
-    let dx = B.x-A.x, dy = B.y-A.y, dist = Math.hypot(dx,dy) || .01;
-    if(dist >= min) continue;
-    const nx = dx/dist, ny = dy/dist, push = (min-dist)/2;
-    A.x -= nx*push; A.y -= ny*push; B.x += nx*push; B.y += ny*push;
-    const p = (A.vx-B.vx)*nx + (A.vy-B.vy)*ny;
-    if(p > .6){                                    // a real knock, not just a nudge apart
-      A.vx -= p*nx*.85; A.vy -= p*ny*.85; B.vx += p*nx*.85; B.vy += p*ny*.85;
-      A.vrot += R(-9,9); B.vrot += R(-9,9);
+    const c = vHit(A, B, h);
+    if(!c) continue;
+    const push = c.gap/2 + .05;                    // the .05 keeps them off each other's skin
+    A.x -= c.nx*push; A.y -= c.ny*push;
+    B.x += c.nx*push; B.y += c.ny*push;
+    const p = (A.vx-B.vx)*c.nx + (A.vy-B.vy)*c.ny;
+    if(p > .5){                                    // a real knock, not just a nudge apart
+      // no two dice ever bounce off each other the same way: the bounce keeps a random
+      // share of the speed and some of it comes off sideways, the way an off-centre hit does
+      const e = R(.62,.98), tx = -c.ny, ty = c.nx, t = R(-.3,.3)*p;
+      A.vx -= p*e*c.nx + t*tx; A.vy -= p*e*c.ny + t*ty;
+      B.vx += p*e*c.nx + t*tx; B.vy += p*e*c.ny + t*ty;
+      A.vrot += R(-16,16) + t*5; B.vrot += R(-16,16) - t*5;
+      A.z = Math.max(A.z||0, Math.min(.4, p*.02)); // and a knock can kick a die up off the felt
+      B.z = Math.max(B.z||0, Math.min(.4, p*.02));
       A.moving = B.moving = true;
       vClack();
     }
   }
-  const b = vBox(), r = S*.55;
+  const b = vBox();
   V.dice.forEach(d=>{
+    // a square cornered on to the rail sticks out further than one sitting square to it
+    const a = d.rot*RAD, r = h*(Math.abs(Math.cos(a)) + Math.abs(Math.sin(a)));
     d.x = Math.max(r, Math.min(b.w-r, d.x));
     d.y = Math.max(r, Math.min(b.h-r, d.y));
     // the corner the ❓ and 🏠 buttons sit in is a rack, not table — a die that stopped
@@ -2223,33 +2401,47 @@ function vSeparate(){
   });
 }
 function vStep(){
-  const b = vBox(), r = vSize()*.55;
+  const b = vBox(), h = vSize()*.5;
   let live = false;
   V.tick++;
   V.dice.forEach(d=>{
     if(!d.moving) return;
     d.x += d.vx; d.y += d.vy; d.rot += d.vrot;
-    d.vx *= .956; d.vy *= .956; d.vrot *= .95;
+    // a die skidding along the felt slows faster than one still bouncing along above it
+    const drag = d.z > .02 ? .985 : .948;
+    d.vx *= drag; d.vy *= drag; d.vrot *= d.z > .02 ? .985 : .94;
+    // the hop: dice come out of a cup and bounce, they don't slide out flat
+    d.vz -= .028;
+    d.z += d.vz;
+    if(d.z <= 0){
+      d.z = 0;
+      if(d.vz < -.05){ d.vz = -d.vz*.44; vClack(); }   // it landed — again
+      else d.vz = 0;
+    }
     // the rails
+    const a = d.rot*RAD, r = h*(Math.abs(Math.cos(a)) + Math.abs(Math.sin(a)));
     if(d.x < r)      { d.x = r;      d.vx =  Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.x > b.w-r)  { d.x = b.w-r;  d.vx = -Math.abs(d.vx)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y < r)      { d.y = r;      d.vy =  Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
     if(d.y > b.h-r)  { d.y = b.h-r;  d.vy = -Math.abs(d.vy)*.55; d.vrot = -d.vrot*.6; vClack(); }
-    if(V.tick % 3 === 0) d.face = RI(1,6);         // tumbling, until it isn't
-    if(Math.hypot(d.vx, d.vy) < .4){ d.moving = false; d.face = d.v; }
+    // faces turn over at the speed the die is going, so the flicker slows as it dies away
+    d.spin += Math.hypot(d.vx, d.vy)*.085 + Math.abs(d.vrot)*.006;
+    if(d.spin >= 1){ d.spin = 0; d.face = RI(1,6); }
+    if(Math.hypot(d.vx, d.vy) < .4 && d.z <= 0){ d.moving = false; d.z = 0; d.face = d.v; }
     else live = true;
   });
   vSeparate();
   vPaint();
   if(live && V.tick < 260){ V.raf = requestAnimationFrame(vStep); return; }
   V.raf = 0;
-  V.dice.forEach(d=>{ d.moving = false; d.face = d.v; });
+  V.dice.forEach(d=>{ d.moving = false; d.z = 0; d.face = d.v; });
   vSettled();
 }
 function vSettled(){
   V.raf = 0;
   if(!vOn()){ V.lock = false; return; }
-  for(let k=0;k<10;k++) vSeparate();
+  V.dice.forEach(d=>{ d.vx = d.vy = d.vrot = 0; d.z = d.vz = 0; });   // nothing still shoving
+  for(let k=0;k<18;k++) vSeparate();
   vPaint();
   const vals = V.dice.map(d => d.v);
   const {best, live} = survey(vals);
@@ -2261,13 +2453,16 @@ function vSettled(){
   if(!best.pts){
     const gen = ++V.gen, read = $('#vread');
     V.lock = true;
-    read.classList.remove('tapme','bad'); read.onclick = null; read.textContent = '…';
-    setTimeout(()=>{ if(gen === V.gen && vOn()) vFarkle(); }, 500 * vals.length);
+    read.classList.remove('tapme','bad'); read.onclick = null;
+    read.innerHTML = curBot() ? `<b>${esc(G.players[G.cur].name)}</b> is looking…` : '…';
+    // a bot doesn't need as long to be sure, but it still gets a beat to look
+    setTimeout(()=>{ if(gen === V.gen && vOn()) vFarkle(); }, (curBot() ? 260 : 500) * vals.length);
     return;
   }
   if(best.pts >= 1000) sparkle(.12);
   V.lock = false;
   vChrome();
+  if(curBot()) botAfterRoll();
 }
 function vFarkle(){
   const gen = ++V.gen;
@@ -2277,7 +2472,9 @@ function vFarkle(){
   const read = $('#vread');
   read.classList.remove('tapme'); read.classList.add('bad'); read.onclick = null;
   read.textContent = '💀 nothing scores';
+  if(curBot()) BOT.say = '💀 nothing scores';
   vChrome();
+  read.classList.add('bad');           // the bot branch of vChrome clears it
   setTimeout(()=>{
     surf.classList.remove('farkled');
     if(gen !== V.gen) return;                     // they undid the throw while it sat there
@@ -2320,12 +2517,12 @@ function vCommit(){
   return true;
 }
 $('#rollBtn').onclick = () => {
-  if(!vOn() || V.lock || V.raf || G.over) return;
+  if(!vOn() || V.lock || V.raf || G.over || curBot()) return;
   if(!V.dice.length){ vRoll(); return; }
   if(!vCommit()) return;
   setTimeout(vRoll, 280);
 };
-$('#cup').onclick = () => { if(!V.dice.length) vRoll(); };
+$('#cup').onclick = () => { if(!V.dice.length && !curBot()) vRoll(); };
 $('#comboBtn').onclick = () => { S.tap(); $('#rulesOvl').classList.add('on'); };
 $('#houseBtn').onclick = openRuleSheet;
 // the felt is measured in pixels, so a rotation or a resized window has to redraw it
@@ -2334,6 +2531,255 @@ window.addEventListener('resize', ()=>{
   clearTimeout(vResize);
   vResize = setTimeout(()=>{ if(vOn() && !V.raf && !V.lock) vSync(); }, 140);
 });
+
+/* =======================================================================
+   ROLLERBOTS — the app taking a seat
+
+   Two things make a Farkle player, and they're separate: what you keep out of a
+   throw, and when you stop. The naive player takes every die that scores, which is
+   how you end up sitting on 300 points with two dice in your hand. A 1 and three 2s
+   is worth 300 all in — but keeping just the 1 is worth about 400, because five dice
+   to throw again beat two. Every level below the first works that out for itself.
+   ======================================================================= */
+const BOTS = {
+  careful:   {name:'Careful',  icon:'🐢', tag:'quits while ahead',
+              bias:1.24, nerve:0,   tempt:1},
+  steady:    {name:'Steady',   icon:'🤖', tag:'plays the odds',
+              bias:1.02, nerve:.06, tempt:.85},
+  gambler:   {name:'Gambler',  icon:'😈', tag:'rolls on two',
+              bias:0.85, nerve:.30, tempt:.75},
+  screwball: {name:'Screwball',icon:'🤪', tag:'unpredictable',
+              bias:1.02, nerve:.2, tempt:.8, random:true}
+};
+/* The Screwball draws a new temperament at the top of every turn and plays the whole turn
+   in it. Biases come off a fixed ladder so the tables it builds stay cached, and one turn
+   in six it forgets strategy altogether and just grabs everything that scores. */
+const WILD = [0.72, 0.82, 0.92, 1.02, 1.14, 1.30, 1.45];
+function botMoodFor(){
+  const bias = pick(WILD), greedy = Math.random() < .17;
+  return {bias, nerve:R(0,.4), tempt:R(.6,.9), greedy,
+          mood: greedy      ? 'is just grabbing whatever scores 🤲'
+              : bias >= 1.3 ? 'is playing it safe today 😇'
+              : bias >= 1.14? 'is being sensible for once 🙂'
+              : bias >= .92 ? 'seems normal… so far 🤔'
+              : bias >= .82 ? 'is feeling brave 😬'
+              :               'is completely unhinged 🤪'};
+}
+
+/* ---- what you could keep out of a throw ---- */
+/* Every handful where all the dice score, boiled down to what a decision actually needs:
+   the points, how many dice you'd have left, and which faces to pick up. A handful that
+   leaves fewer dice AND scores less than another is never the right answer, so it goes. */
+const keepMemo = new Map();
+function botKeeps(c, n){
+  const key = n + ':' + c.join('');
+  if(keepMemo.has(key)) return keepMemo.get(key);
+  const found = {};                                // dice left → the best way to leave that many
+  const sub = [0,0,0,0,0,0,0];
+  const walk = v => {
+    if(v > 6){
+      let used = 0;
+      for(let k=1;k<=6;k++) used += sub[k];
+      if(!used) return;
+      const d = decompose(sub);
+      if(!d || !d.pts) return;
+      const left = n - used;
+      if(!found[left] || d.pts > found[left].pts) found[left] = {pts:d.pts, keep:sub.slice()};
+      return;
+    }
+    for(let k=0;k<=c[v];k++){ sub[v]=k; walk(v+1); }
+    sub[v] = 0;
+  };
+  walk(1);
+  const all = Object.keys(found).map(k => ({left:+k, pts:found[k].pts, keep:found[k].keep}))
+                    .sort((a,b) => b.left - a.left);
+  const out = [];
+  let top = -1;
+  all.forEach(o => { if(o.pts > top){ out.push(o); top = o.pts; } });
+  keepMemo.set(key, out);
+  return out;
+}
+/* every shape a throw of n dice can take, with its odds — 923 of them across all six counts */
+const rollTab = {};
+function botRolls(n){
+  if(rollTab[n]) return rollTab[n];
+  const rows = [], c = [0,0,0,0,0,0,0];
+  const fac = k => { let f = 1; for(let i=2;i<=k;i++) f *= i; return f; };
+  const walk = (v, left) => {
+    if(v > 6){ if(!left) rows.push(c.slice()); return; }
+    for(let k=0;k<=left;k++){ c[v] = k; walk(v+1, left-k); }
+    c[v] = 0;
+  };
+  walk(1, n);
+  const all = Math.pow(6, n);
+  rollTab[n] = rows.map(cc=>{
+    let ways = fac(n);
+    for(let v=1;v<=6;v++) ways /= fac(cc[v]);
+    return {p: ways/all, opts: botKeeps(cc, n)};
+  });
+  return rollTab[n];
+}
+
+/* ---- what the turn is worth from here ---- */
+/* Throw n dice with pot already on the line, keep playing the way this bot plays, and this
+   is what you expect to end up banking — nothing at all, if the throw comes up dead. The
+   pot only ever grows, so the recursion always bottoms out. */
+const BOT_CAP = 4000;                              // past here nobody sane rolls again
+const evMemo = new Map();
+function botEV(n, pot, b){
+  if(pot >= BOT_CAP) return 0;
+  const key = n + ':' + pot + ':' + b.bias;
+  const hit = evMemo.get(key);
+  if(hit !== undefined) return hit;
+  let sum = 0;
+  botRolls(n).forEach(row=>{
+    if(!row.opts.length) return;                   // a dead throw is worth exactly nothing
+    let best = 0;
+    row.opts.forEach(o => { const v = botValue(o, pot, b); if(v > best) best = v; });
+    sum += row.p * best;
+  });
+  evMemo.set(key, sum);
+  return sum;
+}
+// what one option is worth: bank what it leaves you, or roll on — whichever this bot prefers.
+// bias is the whole personality: above 1 it wants a clear edge before it risks the pot,
+// below 1 it'll take the worse side of a close call for the chance of a big one.
+function botValue(o, pot, b){
+  const p2 = pot + o.pts, n2 = o.left || 6;        // clearing all six hands all six back
+  const on = p2 >= BOT_CAP ? 0 : botEV(n2, p2, b);
+  return on > p2 * b.bias ? on : p2;
+}
+function botWantsRoll(n, pot, b){
+  const on = pot >= BOT_CAP ? 0 : botEV(n, pot, b);
+  if(on > pot * b.bias) return true;
+  // …and sometimes it just fancies it. Only when the throw was a near thing anyway — that's
+  // the difference between nerve and not being able to count.
+  return !!(b.nerve && on > pot * b.tempt && Math.random() < b.nerve);
+}
+function botPlan(b, opts, pot){
+  if(b.greedy) return opts.reduce((a,o) => o.pts > a.pts ? o : a);   // grab the lot
+  let best = opts[0], bv = -1;
+  opts.forEach(o=>{                                // sorted most-dice-left first, so ties keep dice
+    const v = botValue(o, pot, b);
+    if(v > bv){ bv = v; best = o; }
+  });
+  return best;
+}
+/* roll or bank — with the rules of the game overruling the arithmetic where they have to */
+function botDecide(b, n, pot){
+  const me = G.players[G.cur], t = total(me);
+  if(shortOfBoard(pot)) return true;                                  // not on the board yet
+  if(G.lastCaller !== null && G.cur !== G.lastCaller)                 // last lap: second place is last place
+    return t + pot <= total(G.players[G.lastCaller]);
+  if(G.lastCaller === null && t + pot >= G.target) return false;      // over the line — take it
+  if(b.greedy) return pot < 300 || n >= 4;
+  return botWantsRoll(n, pot, b);
+}
+
+/* ---- playing it out, slowly enough to watch ---- */
+const BOT = {say:'', gen:0};
+let botHold = false, botPrimed = false, botMood = null;
+
+function botOf(i){
+  const p = G && G.players[i];
+  return p && p.bot ? (BOTS[p.bot] || BOTS.steady) : null;
+}
+function curBot(){ return G && !G.over ? botOf(G.cur) : null; }
+// the profile actually being played right now — the same one all turn, even for the Screwball
+function botBrain(){
+  const b = curBot();
+  if(!b || !b.random) return b;
+  const turn = G.players[G.cur].turns.length;
+  if(!botMood || botMood.seat !== G.cur || botMood.turn !== turn)
+    botMood = Object.assign({seat:G.cur, turn}, botMoodFor());
+  return botMood;
+}
+// undo, a new game or quitting all land here: anything the bot had scheduled gives up quietly
+function botStop(){ BOT.gen++; BOT.say = ''; }
+function botWait(ms, fn){
+  const g = BOT.gen, seat = G && G.cur;
+  setTimeout(()=>{
+    if(g !== BOT.gen || botHold || !curBot() || G.cur !== seat) return;
+    fn();
+  }, ms);
+}
+function botSay(html){ BOT.say = html; if(curBot()) vChrome(); }
+function botName(){ return esc(G.players[G.cur].name); }
+function botKick(delay){
+  if(!curBot() || botHold) return;
+  if(!botPrimed){ botPrimed = true; for(let n=1;n<=6;n++) botRolls(n); }
+  botBrain();                                  // draw this turn's temperament before the pause
+  botWait(delay, botTurn);
+}
+function botTurn(){
+  const b = botBrain();
+  if(!b || V.lock || V.raf) return;
+  if(rideAvailable()){ botRide(b); return; }
+  if(!V.dice.length){
+    // the Screwball says out loud what it's decided to be this turn, so you can see it coming
+    botSay(b.mood && !G.tape.length ? `<b>${botName()}</b> ${b.mood}`
+                                    : `<b>${botName()}</b> shakes the cup…`);
+    botWait(b.mood && !G.tape.length ? 900 : 440, vRoll);
+    return;
+  }
+  botMove(b);
+}
+function botAfterRoll(){ botWait(640, ()=>{ const b = botBrain(); if(b) botMove(b); }); }
+/* the ride offer, answered without the sheet: is someone else's pot with the leftover dice
+   behind it worth more than a fresh six with nothing in it? */
+function botRide(b){
+  const tbl = G.table;
+  if(!tbl){ botTurn(); return; }
+  const take = botEV(6 - (tbl.spent||0), tbl.pts, b) > botEV(6, 0, b);
+  botSay(`<b>${botName()}</b> eyes that ${fmt(tbl.pts)} on the table…`);
+  botWait(1100, ()=>{
+    if(take){ takeRide(); toast(`${botName()} TAKES IT 🎠`); }
+    else { passRide(); toast(`${botName()} WANTS FRESH DICE 🎲`); }
+    botWait(750, botTurn);
+  });
+}
+function botMove(b){
+  b = b || botBrain();
+  if(!b || V.lock || V.raf || !V.dice.length) return;
+  const vals = V.dice.map(d => d.v);
+  const opts = botKeeps(countsOf(vals), vals.length);
+  if(!opts.length) return;                         // dead throw — the farkle timer owns this
+  const plan = botPlan(b, opts, G.pot);
+  const idx = [], want = plan.keep.slice();
+  vals.forEach((v,i) => { if(want[v] > 0){ want[v]--; idx.push(i); } });
+
+  botSay(`<b>${botName()}</b> is thinking…`);
+  // it picks them up one at a time, so you can see what it chose to leave lying there
+  idx.forEach((i,k) => botWait(240 + k*150, ()=>{
+    const d = V.dice[i];
+    if(!d) return;
+    d.sel = true;
+    d.node.classList.add('sel','botpick');
+    G.vr.sel = V.dice.map(x => x.sel);
+    tone({freq:880, dur:.07, type:'sine', vol:.13});
+    clack();
+    vPaint();
+  }));
+
+  botWait(240 + idx.length*150 + 300, ()=>{
+    const left = vals.length - idx.length, pot2 = G.pot + plan.pts;
+    botSay(`keeps ${idx.length === 1 ? 'one die' : idx.length + ' dice'} · <b>+${fmt(plan.pts)}</b>`);
+    const roll = botDecide(b, left || 6, pot2);
+    botWait(840, ()=>{
+      if(roll){
+        botSay(left ? `rolls on with ${left === 1 ? 'one die 🙏' : left + ' dice 🎲'}`
+                    : 'all six set aside — hot dice 🔥');
+        botWait(160, ()=>{ if(vCommit()) botWait(400, vRoll); });
+      } else {
+        botSay(`banks <b>${fmt(pot2)}</b> 🏦`);
+        botWait(180, ()=>{
+          if(!vCommit()) return;
+          botWait(460, ()=>{ if(G && !G.over && G.pot > 0) doBank(); });
+        });
+      }
+    });
+  });
+}
 
 /* ---------- chrome ---------- */
 /* ---------- full screen (iPad Safari and desktop; iPhone Safari has no such thing) ---------- */
@@ -2398,13 +2844,13 @@ $('#swReset').onclick = async () => {
 $('#resumeBtn').onclick = () => { S.tap(); $('#menuOvl').classList.remove('on'); };
 $('#newGameBtn').onclick = () => {
   $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
-  startGame(G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color})),
+  startGame(G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color, bot:p.bot||null})),
             {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide, virtual:G.virtual});
 };
 $('#quitBtn').onclick = () => {
   $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
   remember(G.players);
-  lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color}));
+  lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color, bot:p.bot||null}));
   renderPlayers(); show('setup');
   LS.del(SAVE);
   vAbort();
@@ -2428,7 +2874,7 @@ function load(){
     const g = JSON.parse(LS.get(SAVE));
     if(!g || !g.players || !g.players.length) return false;
     // a game saved before let-it-ride existed: fill in the new fields, don't leave the feature switched off
-    g.players.forEach(p => { if(!p.rode) p.rode = p.turns.map(()=>false); });
+    g.players.forEach(p => { if(!p.rode) p.rode = p.turns.map(()=>false); if(!p.bot) p.bot = null; });
     if(g.letRide === undefined) g.letRide = true;
     if(g.table === undefined) g.table = null;
     if(g.virtual === undefined) g.virtual = false;
@@ -2436,7 +2882,7 @@ function load(){
     G = g; past = []; future = [];
     show('game'); buildPad(); render();
     if(G.over) $('#winOvl').classList.add('on');
-    else setTimeout(maybeOfferRide, 400);       // resumed mid-offer
+    else { setTimeout(maybeOfferRide, 400); botKick(900); }   // resumed mid-offer, or mid-robot
     return true;
   }catch(e){ return false; }
 }
