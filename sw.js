@@ -2,8 +2,17 @@
    Rule number one in here: every path must return a real Response. Handing respondWith()
    an undefined kills the navigation and paints a blank white page, which is exactly the
    bug this file used to have. */
-const CACHE = 'farkler-v7';
+const CACHE = 'farkler-v8';
 const FILES = ['index.html', 'icon-180.png'];
+const SLOW = 3500;                        // how long to wait for the network before giving up on it
+
+// a fetch that won't hang the launch on a bad connection
+function tryNet(req){
+  return Promise.race([
+    fetch(req),
+    new Promise((_, no) => setTimeout(() => no(new Error('slow')), SLOW))
+  ]);
+}
 
 // One at a time: addAll() rejects the whole install if any single request fails.
 self.addEventListener('install', e => {
@@ -44,6 +53,22 @@ self.addEventListener('fetch', e => {
   const isPage = req.mode === 'navigate';
 
   e.respondWith((async () => {
+    // The app itself asks the network first. It used to come out of the cache and only
+    // freshen itself for next time, which meant a change never showed up on the launch you
+    // were looking at — you had to open it twice, and a Home Screen app that never really
+    // quits might not have opened twice in days. Offline still works: that's the fallback.
+    if(isPage){
+      try{
+        const net = await tryNet(req);
+        if(net && net.ok){
+          const copy = net.clone();
+          caches.open(CACHE).then(c => c.put('index.html', copy)).catch(()=>{});
+          return net;
+        }
+      }catch(err){}
+      return (await caches.match('index.html', {ignoreSearch:true})) || sos();
+    }
+
     const hit = await caches.match(req, {ignoreSearch:true});
     if(hit){
       // freshen it quietly for next launch

@@ -266,6 +266,9 @@
   .ridebtn .rbig{font-family:var(--display);font-weight:700;font-size:clamp(50px,17vw,82px);line-height:1}
   .dicerow{display:flex;gap:3px;justify-content:center}
   .dicerow .die{width:clamp(21px,6.4vw,30px);height:clamp(21px,6.4vw,30px)}
+  /* what you'd actually be throwing that pot with — the number on its own doesn't tell you
+     whether it comes with a fresh handful or with two dice and a prayer */
+  .ridebtn .rsub{font-size:clamp(11px,3.1vw,14px);font-weight:800;letter-spacing:.06em;opacity:.8}
   .riding{box-shadow:inset 0 0 0 3px var(--gold)}
 
   /* the running tally for this turn: icon over score, wraps onto as many lines as it needs */
@@ -615,6 +618,24 @@
   @keyframes botblink{0%,100%{opacity:1}50%{opacity:.3}}
   /* the die it has just decided to keep gets picked up in front of you */
   .vdie.botpick .ring{border-color:#8fd0ff;box-shadow:0 0 18px rgba(143,208,255,.9)}
+
+  /* ---------------- KEYBOARD ---------------- */
+  /* None of this shows until a key is actually pressed, so a tablet never sees a ⏎ it can't
+     type. The button Enter would press wears the mark, so what Enter does is never a guess. */
+  body.kbd .act.dflt::after, body.kbd .btn.dflt::after, body.kbd .ridebtn.dflt::after{
+    content:"⏎";position:absolute;top:4px;right:8px;font-family:var(--font);font-size:12px;
+    font-weight:700;letter-spacing:0;opacity:.5;pointer-events:none}
+  .act, .btn, .ridebtn{position:relative}
+  body.kbd .vread.dflt::before{content:"⏎ ";font-weight:700;opacity:.75}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  /* a die shows focus with its own ring rather than a box drawn round a rotating cube */
+  .vdie:focus-visible{outline:none}
+  .vdie:focus-visible .ring{border-color:#fff;box-shadow:0 0 16px rgba(255,255,255,.85)}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;text-align:left;margin-top:4px}
+  .keys kbd{background:var(--card-3);border:1px solid var(--line);border-bottom-width:2px;
+            border-radius:6px;padding:1px 6px;font-family:var(--font);font-size:12px;
+            font-weight:700;white-space:nowrap;color:var(--text)}
+  .keys span{font-size:14px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -837,6 +858,16 @@
             and five dice to throw beats 300 points and two.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
+      <h3>⌨️ On a keyboard</h3>
+      <div class="keys">
+        <kbd>Enter</kbd><span>does the obvious thing — the button it would press wears a ⏎</span>
+        <kbd>⇧ Enter</kbd><span>take every scoring die and throw the rest, in one press</span>
+        <kbd>1</kbd><span>…<kbd>6</kbd> — pick up every die showing that number; again to put them back</span>
+        <kbd>Tab</kbd><span>walk the dice and the buttons</span>
+        <kbd>Space</kbd><span>pick up the die you're on</span>
+        <kbd>⌘Z</kbd><span>undo · <kbd>⌘⇧Z</kbd> redo</span>
+        <kbd>Esc</kbd><span>close whatever's open</span>
+      </div>
       <div class="hint">These are the common values. Every table has its own twists — tap <b>House rule</b> to name your own
         (three 2s are worth what?) and it becomes a button you keep.</div>
     </div>
@@ -852,7 +883,7 @@
     <button class="btn ghost wide" id="newGameBtn" style="margin-top:10px">🎲 New game (same players)</button>
     <button class="btn ghost wide" id="quitBtn" style="margin-top:10px">🏠 Change players</button>
     <div class="diag" id="diag"></div>
-    <button class="btn ghost wide" id="swReset" style="margin-top:10px;font-size:15px">🧹 Reset offline copy</button>
+    <button class="btn ghost wide" id="swReset" style="margin-top:10px;font-size:15px">🔄 Get the latest version</button>
   </div>
 </div>
 
@@ -864,6 +895,8 @@
       <span class="rstack">
         <span class="rlab">LET IT RIDE</span>
         <span class="rbig" id="ridePot"></span>
+        <span class="dicerow" id="rideDice"></span>
+        <span class="rsub" id="rideSub"></span>
       </span>
     </button>
     <button class="ridebtn fresh" id="rideNo">
@@ -1387,6 +1420,8 @@ const PICKABLE = [
   '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
+// shown in the 🏠 menu, so "did the update actually land?" has an answer you can read
+const BUILD = '2026-08-14 · keys';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -1889,6 +1924,7 @@ function render(){
   $('#bankBtn').disabled = !!curBot() || !G.pot || shortOfBoard(G.pot) || ridingUnearned();
   paintSteps();
   vSync();          // the felt board follows the state, so undo and redo control it too
+  paintDefault();   // …and so does whatever Enter would press
 }
 
 /* ---------- turn actions ---------- */
@@ -1949,7 +1985,13 @@ function doBank(){
   }
   const caller = G.lastCaller;
   nextPlayer();
-  if(call) setTimeout(()=> showLastCall(call, caller), 1100);
+  if(call){
+    // Last call is an announcement, and it is rude to start playing over the top of it.
+    // nextPlayer has already lined the next player up — park them until it's been read.
+    // botWait checks this when it fires, so the kick it just scheduled bails on its own.
+    botHold = true;
+    setTimeout(()=> showLastCall(call, caller), 1100);
+  }
 }
 
 /* ---------- the ride offer, asked outright at the top of the turn ---------- */
@@ -1962,6 +2004,14 @@ function maybeOfferRide(){
   if(curBot()) return;                 // a Rollerbot answers this itself, at the top of its turn
   const tbl = G.table;
   $('#ridePot').textContent = fmt(tbl.pts);
+  // The pot on its own doesn't tell you what you'd be throwing it with. You inherit however
+  // many dice the last player had already used, so a fat pot can come with two dice and a
+  // prayer — which is the difference between a good ride and a terrible one.
+  const left = 6 - (tbl.spent || 0);
+  $('#rideDice').innerHTML = Array.from({length:left},
+    () => '<svg class="die"><use href="#die-x"/></svg>').join('');
+  $('#rideSub').textContent = left === 6 ? 'A FULL SIX TO THROW'
+                                         : `ONLY ${SAY_N[left] ? SAY_N[left].toUpperCase() : left} TO THROW`;
   $('#freshDice').innerHTML = [1,2,3,4,5,6].map(n => `<svg class="die"><use href="#die-${n}"/></svg>`).join('');
   $('#rideOvl').classList.add('on');
   S.offer();
@@ -2015,7 +2065,13 @@ function showLastCall(kind, callerIdx){
   $('#callOvl').classList.add('on');
   S.lastCall();
 }
-$('#callGo').onclick = () => { S.tap(); $('#callOvl').classList.remove('on'); };
+$('#callGo').onclick = () => {
+  S.tap();
+  $('#callOvl').classList.remove('on');
+  botHold = false;                  // now they can come at you
+  vChrome();                        // clear the parked line off the felt before it plays
+  botKick(420);
+};
 
 function nextPlayer(){
   botStop(); botHold = false; botMood = null;
@@ -2171,8 +2227,10 @@ function vClear(){ if(G) G.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, li
 function vNode(){
   const sides = [1,2,3,4,5,6].map(n =>            // all lit: a die is made mid-throw
     `<span class="cf lit f${n}"><svg viewBox="0 0 100 100"><use href="#cube-${n}"/></svg></span>`).join('');
-  return el('div','vdie',
+  const n = el('div','vdie',
     `<span class="shd"></span><div class="cube">${sides}</div><span class="ring"></span>`);
+  n.tabIndex = 0;                    // so Tab walks the dice and Space picks one up
+  return n;
 }
 /* ---- which way up is a six? ---- */
 /* Each side sits at a quarter turn from the front, so its outward normal in the die's own
@@ -2295,7 +2353,7 @@ function vSync(){
    Single 1 + Single 5" is more than it can take alongside a three of a kind. Repeats get
    counted rather than listed, and loose 1s and 5s get the short name: on a table with the
    dice sitting right there, "a 1" is as clear as "Single 1" and a third of the width. */
-const SAY_N = ['', '', 'two', 'three', 'four', 'five', 'six'];
+const SAY_N = ['', 'one', 'two', 'three', 'four', 'five', 'six'];
 function comboText(parts){
   const out = [];
   parts.forEach(p=>{
@@ -2377,6 +2435,7 @@ function vChrome(){
   const short = shortOfBoard(pot);
   bank.disabled = V.lock || G.over || !pot || (sel.length > 0 && !dec) || unearned || short;
   $('#bankSub').textContent = bankNote(pot);
+  paintDefault();
 }
 // you can't bank your way onto the board with less than the opening minimum. Pressing the
 // button used to set your dice aside and *then* refuse, which could leave you holding a
@@ -2930,6 +2989,125 @@ function botMove(b){
   });
 }
 
+/* =======================================================================
+   KEYBOARD — the whole game without taking a hand off the keys
+
+   Enter does the obvious thing for wherever you happen to be, and whatever it would press
+   wears a ⏎ so it's never a guess. Nothing shows until a key is actually pressed, so a
+   tablet never gets told about a key it hasn't got.
+   ======================================================================= */
+/* the overlays, outermost first, with the button Enter presses and the one Escape presses */
+const OVLS = [
+  ['emojiOvl', null,           '#closeEmoji'],
+  ['ruleOvl',  '#ruleSave',    '#ruleClose'],
+  ['rideOvl',  '#rideTake',    '#rideNo'],
+  ['callOvl',  '#callGo',      '#callGo'],
+  ['winOvl',   '#againBtn',    '#closeWin'],
+  ['rulesOvl', '#closeRules',  '#closeRules'],
+  ['menuOvl',  '#resumeBtn',   '#resumeBtn']
+];
+const openOvl = () => OVLS.find(o => $('#'+o[0]).classList.contains('on')) || null;
+const typing  = n => !!n && (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA');
+const usable  = n => !!n && !n.disabled;
+
+/* what Enter presses right now */
+function defaultTarget(){
+  const ovl = openOvl();
+  if(ovl) return ovl[1] ? $(ovl[1]) : null;
+  if($('#setup').classList.contains('on')) return $('#start');
+  if(!G) return null;
+  if(G.over) return $('#againSame');
+  if(curBot()) return null;                       // not your turn — let it play
+  if(!vOn()) return usable($('#bankBtn')) ? $('#bankBtn') : null;
+  if(V.lock || V.raf) return null;                // dice still in the air
+  if(!V.dice.length) return usable($('#rollBtn')) ? $('#rollBtn') : null;
+  // nothing picked up yet: Enter takes what the bar is offering, and Enter again throws
+  if(!V.dice.some(d => d.sel))
+    return (G.vr.best && G.vr.best.length) ? $('#vread') : null;
+  return usable($('#rollBtn')) ? $('#rollBtn') : null;
+}
+function paintDefault(){
+  document.querySelectorAll('.dflt').forEach(n => n.classList.remove('dflt'));
+  const t = defaultTarget();
+  if(t) t.classList.add('dflt');
+}
+/* pick up every die showing this face — the fast way to take three 5s */
+function pickFace(face){
+  if(!vOn() || V.lock || V.raf || G.over || curBot() || !V.dice.length) return;
+  const live = (G.vr && G.vr.live) || [];
+  const hits = V.dice.map((d,i) => i).filter(i => V.dice[i].v === face && live.includes(i));
+  if(!hits.length){ pfft(); return; }             // nothing there worth anything
+  const on = !hits.every(i => V.dice[i].sel);     // all of them already? then this puts them back
+  hits.forEach(i=>{
+    V.dice[i].sel = on;
+    V.dice[i].node.classList.toggle('sel', on);
+  });
+  G.vr.sel = V.dice.map(d => d.sel);
+  tone({freq: on ? 880 : 520, dur:.07, type:'sine', vol:.13});
+  clack();
+  vPaint(); vChrome(); save();
+}
+/* take everything that scores and throw what's left, in one press */
+function sweepAndRoll(){
+  if(!vOn() || V.lock || V.raf || G.over || curBot()){ S.nope(); return; }
+  if(!V.dice.length){ vRoll(); return; }
+  if(!(G.vr.best && G.vr.best.length)){ S.nope(); return; }
+  vTakeBest();
+  setTimeout(()=> $('#rollBtn').click(), 140);
+}
+
+let kbdOn = false;
+document.addEventListener('keydown', e=>{
+  if(!kbdOn){ kbdOn = true; document.body.classList.add('kbd'); paintDefault(); }
+  const k = e.key, mod = e.metaKey || e.ctrlKey, at = document.activeElement;
+
+  // undo and redo — but a name field keeps its own, so typing still behaves like a text field
+  if(mod && (k === 'z' || k === 'Z')){
+    if(typing(at)) return;
+    e.preventDefault();
+    (e.shiftKey ? $('#redoBtn') : $('#undoBtn')).click();
+    return;
+  }
+  if(mod && (k === 'y' || k === 'Y')){            // the Windows spelling of redo
+    if(typing(at)) return;
+    e.preventDefault(); $('#redoBtn').click(); return;
+  }
+  if(mod) return;                                 // every other chord belongs to the browser
+
+  if(k === 'Escape'){
+    const ovl = openOvl();
+    if(ovl){ e.preventDefault(); const b = $(ovl[2]); if(b) b.click(); }
+    else if(typing(at)) at.blur();
+    return;
+  }
+  if(k === 'Enter'){
+    if(e.shiftKey){ e.preventDefault(); sweepAndRoll(); return; }
+    if(typing(at)){                               // Enter out of a field commits the form
+      e.preventDefault(); at.blur();
+      const t = defaultTarget(); if(t) t.click();
+      return;
+    }
+    if(at && at.tagName === 'BUTTON') return;     // something's focused: let it take the press
+    e.preventDefault();
+    const t = defaultTarget();
+    if(t) t.click(); else S.nope();
+    return;
+  }
+  if(k === ' ' || k === 'Spacebar'){              // pick up whichever die you've tabbed to
+    const i = V.dice.findIndex(d => d.node === at);
+    if(i >= 0){ e.preventDefault(); vTap(i); }
+    return;
+  }
+  if(/^[1-6]$/.test(k) && !typing(at)){ e.preventDefault(); pickFace(+k); }
+});
+/* The mark has to move when an overlay opens, and those get opened from a dozen places. Watch
+   only the screens and the overlays themselves, never their contents — paintDefault sets a
+   class on a button inside them, and a subtree watch would call itself forever. */
+[...OVLS.map(o => '#'+o[0]), '#setup', '#game'].forEach(sel=>{
+  new MutationObserver(paintDefault).observe($(sel),
+    {attributes:true, attributeFilter:['class'], subtree:false});
+});
+
 /* ---------- chrome ---------- */
 /* ---------- full screen (iPad Safari and desktop; iPhone Safari has no such thing) ---------- */
 const docEl = document.documentElement;
@@ -2969,6 +3147,7 @@ function refreshDiag(){
   else sw = '<span class="warn">needs a localhost address</span>';
 
   $('#diag').innerHTML =
+    `<div><b>Version</b> ${esc(BUILD)}</div>` +
     `<div><b>Address</b> ${esc(location.href)}</div>` +
     `<div><b>Launched</b> ${standalone ? 'from the Home Screen' : 'in the browser'}</div>` +
     `<div><b>Offline copy</b> ${sw}</div>` +
