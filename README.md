@@ -132,6 +132,9 @@ felt to set it going again.
 - **Finishing** — first past the target starts the last lap. Everyone else gets one turn to take
   the lead, and each column shows exactly what they need. Take the lead and the lap resets around
   you. A full lap with nobody passing the leader ends it.
+- **How it played out** — under the final scoresheet, the whole game as one graph: a line per
+  player climbing turn by turn, the target as a dashed finish line, hollow dots where somebody
+  farkled, and a count of how many times the lead actually changed hands.
 
 Undo and redo step through every single press. Players, icons, and house rules are remembered
 between games; benched players are one tap from rejoining.
