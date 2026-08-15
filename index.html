@@ -103,8 +103,12 @@
   .btn.go{background:linear-gradient(#ff6b5f,var(--red));color:#fff;font-family:var(--display);font-weight:700;
           letter-spacing:.06em;font-size:26px;padding:18px;margin-top:16px}
   .opt{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;font-size:16px}
-  .opt input[type=number]{width:110px;font-size:18px;padding:9px 11px;border-radius:12px;border:2px solid var(--line);
-                          background:#16211d;color:var(--text);text-align:center}
+  .opt input{width:110px;font-size:18px;padding:9px 11px;border-radius:12px;border:2px solid var(--line);
+             background:#16211d;color:var(--text);text-align:center}
+  .opt input.narrow{width:82px}
+  .opt input:disabled{opacity:.4}
+  /* the amount and its switch travel together on the right of the row */
+  .optpair{display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .switch{width:62px;height:34px;border-radius:99px;background:#3a4a44;position:relative;flex:0 0 auto;transition:background .15s}
   .switch::after{content:"";position:absolute;top:3px;left:3px;width:28px;height:28px;border-radius:99px;background:#e8f0ec;
                  box-shadow:0 2px 4px rgba(0,0,0,.5);transition:left .15s}
@@ -342,6 +346,22 @@
   .sbtn.plus{font-family:var(--display);font-size:34px;font-weight:700;color:var(--blue);
              padding:0;min-height:52px;line-height:1}
   .seclab{color:var(--muted);font-size:11px;margin:2px 4px 6px;letter-spacing:.14em;text-transform:uppercase}
+  /* the same buttons on the setup screen, as a chart rather than a keypad: nothing to press,
+     nothing to tab through, and the singles come down to the size of everything else */
+  .scoreref{margin-top:14px;pointer-events:none}
+  .scoreref .seclab{margin-top:10px}
+  /* the card is a good bit narrower than the pad, so the dice come down to suit it */
+  .scoreref .sbtn{box-shadow:0 3px 0 var(--drop);padding:8px 4px;gap:3px}
+  .scoreref .sbtn .face{font-size:23px}
+  .scoreref .sbtn .lab{font-size:12px;line-height:1.1}
+  .scoreref .sbtn .pts{font-size:15px}
+  .scoreref .gsing{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+  .scoreref .gsing .sbtn{background:linear-gradient(#33443c,#22302a);border-color:rgba(255,203,71,.5)}
+  .scoreref .gsing .sbtn .pts{color:var(--gold)}
+  /* the standing offer at the end of the specials: the + you'll find on the pad */
+  .scoreref .ownrule .face{font-family:var(--display);font-weight:700;font-size:27px;
+                           color:var(--blue);line-height:1}
+  .scoreref .ownrule .lab{color:#a9c7d8}
   /* three across everywhere: triples fill 3×2, more-of-a-kind 3×1, specials 3×2 and on to 3×3 as rules are added */
   .gtri,.gkind,.gspec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
 
@@ -693,7 +713,7 @@
 <div id="setup" class="screen on">
   <div class="logo">
     <h1>FARKLER</h1>
-    <p>🎲 the dice game scorekeeper 🎲</p>
+    <p>🎲 the dice game and scorekeeper 🎲</p>
   </div>
 
   <!-- only there when you came in from the gear with a game still running -->
@@ -731,13 +751,18 @@
       <div class="bench" id="bench"></div>
     </div>
 
+    <!-- text, not number: a number input won't hold a comma, and five figures without one
+         is a squint. The digits are re-grouped as they're typed. -->
     <div class="opt">
       <label for="target">🏁 Play to</label>
-      <input type="number" id="target" value="10000" step="500" min="500">
+      <input type="text" inputmode="numeric" autocomplete="off" id="target" value="10,000">
     </div>
     <div class="opt">
-      <label for="onboard">🚪 Need 500 to get on the board</label>
-      <div class="switch on" id="onboard" role="switch" aria-checked="true" tabindex="0"></div>
+      <label for="boardAmt">🚪 Get on the board with</label>
+      <span class="optpair">
+        <input type="text" inputmode="numeric" autocomplete="off" id="boardAmt" class="narrow" value="500">
+        <span class="switch on" id="onboard" role="switch" aria-checked="true" tabindex="0"></span>
+      </span>
     </div>
     <div class="opt">
       <label for="letride">🎠 Let it ride (roll with greed)</label>
@@ -757,6 +782,8 @@
       <b>Bank it</b> to keep the points, or hit <b>FARKLE</b> when you roll nothing and lose the pot.
       Farkle rules vary by kitchen table, so you can name your own <b>house rules</b> and they stick around as buttons.
     </div>
+    <!-- every combination that scores, in the buttons you'll be tapping -->
+    <div class="scoreref" id="scoreRef"></div>
   </div>
 </div>
 
@@ -951,7 +978,7 @@
             a pot and walking off with it. Do it and the whole thing is yours. Farkle and you lose the lot —
             but the player who banked keeps their points either way.</li>
         <li>Not feeling lucky? Tap ✕ and roll a fresh six.</li>
-        <li>If the 500-to-get-on-the-board rule is on, nobody can ride until every player has banked their
+        <li>If the get-on-the-board rule is on, nobody can ride until every player has banked their
             way onto the board.</li>
       </ul>
       <h3>🤖 Rollerbots</h3>
@@ -1720,7 +1747,32 @@ function wireSwitch(id, onChange){
     onChange && onChange(sw.classList.contains('on'));
   };
 }
-wireSwitch('onboard');
+/* A number field that keeps its thousands separator while you type. The commas are put back
+   after every keystroke, so the caret has to be put back too — it's restored to the same
+   place in the digits, not the same place in the string, or it walks every time a comma
+   appears in front of it. */
+function numField(id, fallback, min){
+  const inp = $('#'+id);
+  const read = () => Math.max(min, parseInt(inp.value.replace(/\D/g,''), 10) || fallback);
+  inp.addEventListener('input', ()=>{
+    const kept = inp.value.slice(0, inp.selectionStart).replace(/\D/g,'').length;
+    const digits = inp.value.replace(/\D/g,'').slice(0, 9);
+    inp.value = digits ? fmt(parseInt(digits, 10)) : '';
+    let seen = 0, at = kept ? inp.value.length : 0;
+    if(kept) for(let i=0; i<inp.value.length; i++){
+      if(/\d/.test(inp.value[i]) && ++seen === kept){ at = i+1; break; }
+    }
+    inp.setSelectionRange(at, at);
+  });
+  inp.addEventListener('focus', ()=> inp.select());     // one tap replaces the whole amount
+  inp.addEventListener('blur',  ()=> inp.value = fmt(read()));
+  return read;
+}
+const readTarget = numField('target',  10000, 500);
+const readBoard  = numField('boardAmt',  500,  50);
+
+// the amount is only worth having when the rule is on
+wireSwitch('onboard', on => $('#boardAmt').disabled = !on);
 wireSwitch('letride');
 /* ---------- where the dice are: the choice that changes the whole screen ---------- */
 let vdice = LS.get(VDICE) === '1';
@@ -1742,8 +1794,8 @@ $('#start').onclick = () => {
   lineup.forEach((p,i)=>{ p.name = (p.name||'').trim() || 'Player '+(i+1); });
   remember(lineup);
   startGame(lineup, {
-    target: Math.max(500, parseInt($('#target').value)||10000),
-    minOnBoard: $('#onboard').classList.contains('on') ? 500 : 0,
+    target: readTarget(),
+    minOnBoard: $('#onboard').classList.contains('on') ? readBoard() : 0,
     letRide: $('#letride').classList.contains('on'),
     virtual: vdice
   });
@@ -1845,6 +1897,38 @@ function buildPad(){
 
   pad.append(right);
 }
+/* The same combinations on the setup screen, so you can see what scores before you start.
+   Divs, not buttons: there's nothing to press here, and a chart of thirteen buttons would
+   otherwise be thirteen more stops on the way round with Tab. */
+function buildScoreRef(){
+  const box = $('#scoreRef');
+  if(!box) return;
+  box.innerHTML = '';
+  const tile = (s, cls) => el('div', 'sbtn' + (cls ? ' '+cls : ''),
+    `<div class="face">${iconHTML(s.icon)}</div>` +
+    `<div class="lab">${esc(s.lab)}</div>` +
+    `<div class="pts${s.pts<0?' neg':''}">${s.pts>0?'+':''}${s.pts}</div>`);
+  const section = (label, list, grid, cls) => {
+    box.append(el('div','seclab',label));
+    const g = el('div', grid);
+    list.forEach(s => g.append(tile(s, cls)));
+    box.append(g);
+  };
+  section('THE SINGLES',      SINGLES,  'gsing');
+  section('THREE OF A KIND',  TRIPLES,  'gtri');
+  section('MORE OF A KIND',   KINDS,    'gkind');
+  // the specials, then whatever this table has invented for itself, in its own colour
+  box.append(el('div','seclab','SPECIAL ROLLS'));
+  const gs = el('div','gspec');
+  SPECIALS.forEach(s => gs.append(tile(s, 'spec')));
+  houseRules.forEach(r => gs.append(
+    tile({icon:{emoji:'🏠'}, lab:r.name, pts:r.pts}, 'house')));
+  // and the offer itself, so it's clear the list isn't the end of it. Nothing to press here —
+  // the real + lives on the scoring pad.
+  gs.append(el('div','sbtn cust ownrule',
+    '<div class="face">＋</div><div class="lab">Your own house rule</div>'));
+  box.append(gs);
+}
 function mkBtn(s, cls, hideLab){
   const b = el('button', 'sbtn' + (cls ? ' '+cls : ''),
     `<div class="face">${iconHTML(s.icon)}</div>` +
@@ -1875,7 +1959,7 @@ function renderRuleList(){
       `<span class="rp">${r.pts>0?'+':''}${r.pts}</span>`);
     const del = el('button','rd','✕');
     del.title = 'Forget this rule';
-    del.onclick = () => { S.tap(); houseRules.splice(i,1); saveRules(); renderRuleList(); buildPad(); };
+    del.onclick = () => { S.tap(); houseRules.splice(i,1); saveRules(); renderRuleList(); buildPad(); buildScoreRef(); };
     row.append(del);
     list.append(row);
   });
@@ -1891,7 +1975,7 @@ $('#ruleSave').onclick = () => {
   const r = ruleInput(); if(!r) return;
   const hit = houseRules.findIndex(x => x.name.toLowerCase() === r.name.toLowerCase());
   if(hit >= 0) houseRules[hit] = r; else houseRules.push(r);
-  saveRules(); buildPad();
+  saveRules(); buildPad(); buildScoreRef();
   $('#ruleOvl').classList.remove('on');
   addScore(r.name, r.pts, {emoji:'🏠'}, 'house', r.dice);
 };
@@ -1978,7 +2062,7 @@ function render(){
   });
 
   const p = G.players[G.cur], t = total(p);
-  const need = G.minOnBoard && t === 0 ? ` · needs ${G.minOnBoard} to get on the board` : '';
+  const need = G.minOnBoard && t === 0 ? ` · needs ${fmt(G.minOnBoard)} to get on the board` : '';
   // during the last round, say exactly what it takes to pass the leader — counting what's already in the pot
   let chase = '';
   if(chasing && !G.over){
@@ -2188,7 +2272,7 @@ $('#bankBtn').onclick = () => {
   if(pot <= 0){ S.nope(); bump($('#bankBtn')); return; }
   if(shortOfBoard(pot)){
     S.nope(); bump($('#bankBtn'));
-    toast(`GET ON THE BOARD, ${G.minOnBoard} 🚪`);
+    toast(`GET ON THE BOARD, ${fmt(G.minOnBoard)} 🚪`);
     return;
   }
   if(sel.length && !vCommit()) return;
@@ -3483,6 +3567,7 @@ paintSound();
 document.body.insertAdjacentHTML('afterbegin', diceSprite());
 loadRoster();
 loadRules();
+buildScoreRef();
 // start with the last crew if we know one, otherwise two blank seats
 lineup = roster.slice(-2).map(r=>({name:r.name, emoji:r.emoji, color:r.color}));
 while(lineup.length < 2) lineup.push(newPlayer());
