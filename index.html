@@ -559,7 +559,12 @@
        background:radial-gradient(closest-side, rgba(0,0,0,.5), rgba(0,0,0,.26) 46%, rgba(0,0,0,0) 100%);
        transform:translate(7%, 10%) translateZ(calc(var(--h) * -1.02)) scale(calc(1 + var(--z) * .8));
        opacity:calc(.85 - var(--z) * .3)}
-  .vdie .ring{position:absolute;inset:-9%;border-radius:26%;border:3px solid transparent;
+  /* A circle, and it has to be one: the die turns inside this box and the ring doesn't turn
+     with it, so any cornered shape sits crooked against a die that settled at 40°. A circle
+     reads the same at every angle. It has to stand well off the die, too — a corner sits 71%
+     of the die's width out from the middle where a flat side sits 50% — or a die landing on
+     the diagonal would wear its ring cutting across the corners. */
+  .vdie .ring{position:absolute;inset:-27%;border-radius:50%;border:3px solid transparent;
               pointer-events:none;transform:translateZ(calc(var(--h) * -1));
               transition:border-color .12s, box-shadow .12s}
   .vdie.sel .ring{border-color:var(--gold);box-shadow:0 0 22px rgba(255,203,71,.9)}
