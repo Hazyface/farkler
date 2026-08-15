@@ -574,21 +574,35 @@
   .vdie.fly{transition:transform .5s cubic-bezier(.35,0,.85,.4), opacity .5s ease}
 
   .cup{position:absolute;left:50%;bottom:15%;width:clamp(64px,21%,112px);padding:0;background:none;
-       transform:translateX(-50%);transform-origin:50% 88%;z-index:3;
-       filter:drop-shadow(0 12px 16px rgba(0,0,0,.65));transition:opacity .3s, transform .3s}
-  .cup svg{width:100%;height:auto;display:block}
+       transform:translateX(-50%);z-index:3;transition:opacity .3s, transform .3s}
+  /* The cast shadow is its own soft ellipse on the felt, not a blurred copy of the cup. A
+     drop-shadow filter traces the silhouette, so the cup wore a hard-edged trapezoid with the
+     rim's arc cut across it — and being a filter on the element, it swung round with the cup
+     every time it tipped. This lies on the table and stays there. Its outer stop is fully
+     transparent, so it has no edge to see. */
+  .cup::after{content:"";position:absolute;left:50%;bottom:-7%;width:126%;height:30%;
+              transform:translateX(-50%);z-index:-1;pointer-events:none;
+              background:radial-gradient(closest-side ellipse,
+                rgba(0,0,0,.55), rgba(0,0,0,.34) 40%, rgba(0,0,0,.13) 68%, rgba(0,0,0,0) 100%)}
+  /* a close, soft one under the cup itself for lift — nothing like the old cast */
+  .cup svg{width:100%;height:auto;display:block;transform-origin:50% 88%;
+           filter:drop-shadow(0 3px 5px rgba(0,0,0,.45))}
   .cup.hide{opacity:0;pointer-events:none;transform:translateX(-50%) scale(.6)}
-  .cup.shake{animation:cupshake .42s ease}
+  /* the shake turns the cup, not the shadow under it. The class is spelled the same as the
+     rude wobble a bad tap gets, and that rule would otherwise catch the cup here and throw
+     its centring off, so this seat is claimed explicitly. */
+  .cup.shake{animation:none}
+  .cup.shake svg{animation:cupshake .42s ease}
   @keyframes cupshake{
-    0%{transform:translateX(-50%) rotate(0)}
-    14%{transform:translateX(-58%) rotate(-15deg)}
-    30%{transform:translateX(-42%) rotate(14deg)}
-    46%{transform:translateX(-56%) rotate(-11deg)}
-    62%{transform:translateX(-46%) rotate(9deg)}
-    82%{transform:translateX(-50%) rotate(62deg)}
-    100%{transform:translateX(-50%) rotate(38deg)}
+    0%{transform:translateX(0) rotate(0)}
+    14%{transform:translateX(-8%) rotate(-15deg)}
+    30%{transform:translateX(8%) rotate(14deg)}
+    46%{transform:translateX(-6%) rotate(-11deg)}
+    62%{transform:translateX(4%) rotate(9deg)}
+    82%{transform:translateX(0) rotate(62deg)}
+    100%{transform:translateX(0) rotate(38deg)}
   }
-  @media (prefers-reduced-motion:reduce){ .cup.shake{animation:none} }
+  @media (prefers-reduced-motion:reduce){ .cup.shake svg{animation:none} }
 
   /* the one line of text under the board: what you've got, or what's the best on offer.
      It sits outside the felt so it can never cover a die you need to tap. */
@@ -771,25 +785,57 @@
       </div>
       <div class="dielayer" id="dielayer"></div>
       <div class="flylayer" id="flylayer"></div>
+      <!-- A leather dice cup: straight-sided, green baize inside, cream stitching up the seam
+           and round the top and bottom. The old one tapered like a party cup, and its sides
+           were three hard rules across a flat gradient. -->
       <button class="cup" id="cup" title="Shake and roll">
         <svg viewBox="0 0 110 132" aria-hidden="true">
           <defs>
-            <linearGradient id="cupSide" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#040405"/><stop offset=".2" stop-color="#35353d"/>
-              <stop offset=".44" stop-color="#191920"/><stop offset=".74" stop-color="#2c2c34"/>
-              <stop offset="1" stop-color="#040405"/>
+            <!-- hide, lit from the upper left: dark at both edges where the cylinder turns away -->
+            <linearGradient id="cupHide" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#08080a"/><stop offset=".1" stop-color="#1e1e23"/>
+              <stop offset=".3" stop-color="#3b3b43"/><stop offset=".46" stop-color="#2b2b32"/>
+              <stop offset=".72" stop-color="#191920"/><stop offset=".9" stop-color="#0e0e12"/>
+              <stop offset="1" stop-color="#060608"/>
             </linearGradient>
-            <linearGradient id="cupIn" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#2a1015"/>
+            <!-- the rolled lip catches more of it than the wall below -->
+            <linearGradient id="cupLip" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#101014"/><stop offset=".28" stop-color="#4a4a53"/>
+              <stop offset=".5" stop-color="#31313a"/><stop offset=".78" stop-color="#1c1c22"/>
+              <stop offset="1" stop-color="#0a0a0d"/>
             </linearGradient>
+            <!-- baize, brightest where the light falls in, shading off to the far wall -->
+            <radialGradient id="cupFelt" cx=".4" cy=".26" r=".92">
+              <stop offset="0" stop-color="#49a35b"/><stop offset=".45" stop-color="#2f7c45"/>
+              <stop offset=".82" stop-color="#1d5731"/><stop offset="1" stop-color="#123c22"/>
+            </radialGradient>
           </defs>
-          <path d="M13 18 L97 18 L83 120 Q55 130 27 120 Z" fill="url(#cupSide)"/>
-          <path d="M18 58 L92 58" stroke="rgba(255,255,255,.09)" stroke-width="3"/>
-          <path d="M20 76 L90 76" stroke="rgba(0,0,0,.6)" stroke-width="5"/>
-          <path d="M20 82 L90 82" stroke="rgba(255,255,255,.07)" stroke-width="2"/>
-          <ellipse cx="55" cy="18" rx="42" ry="11" fill="url(#cupIn)"/>
-          <ellipse cx="55" cy="18" rx="42" ry="11" fill="none" stroke="#4e4e58" stroke-width="3"/>
-          <ellipse cx="55" cy="16" rx="42" ry="11" fill="none" stroke="rgba(255,255,255,.24)" stroke-width="1.5"/>
+          <!-- the wall: straight sides, the base rolling away from you -->
+          <path d="M17 20 L17 110 Q17 123 55 123 Q93 123 93 110 L93 20 Z" fill="url(#cupHide)"/>
+          <!-- the broad sheen down the lit side of the hide -->
+          <path d="M23 21 Q30 70 26 112 Q40 120 47 121 Q52 70 50 20 Z" fill="rgba(255,255,255,.05)"/>
+          <!-- where the wall meets the table, and the shading that turns the base under -->
+          <path d="M17 104 Q55 116 93 104 L93 110 Q93 123 55 123 Q17 123 17 110 Z"
+                fill="rgba(0,0,0,.34)"/>
+          <!-- Stitching: round under the lip, up the seam, round the base. A line running round
+               the cylinder is the rim's own ellipse further down, so it sags by exactly the
+               rim's ry — a quadratic reaches a quarter of the way to its control point, hence
+               the doubled drop. -->
+          <g fill="none" stroke="#c4ac7d" stroke-width="1.2" stroke-linecap="round"
+             stroke-dasharray="2.6 3.4" opacity=".82">
+            <path d="M17 31 Q55 54 93 31"/>
+            <path d="M76 33 L76 108"/>
+            <path d="M17 99 Q55 122 93 99"/>
+          </g>
+          <!-- the rolled lip, then the mouth cut out of it -->
+          <ellipse cx="55" cy="20" rx="38" ry="11.6" fill="url(#cupLip)"/>
+          <ellipse cx="55" cy="21.4" rx="30.5" ry="8.4" fill="url(#cupFelt)"/>
+          <!-- the near inside wall falls into shadow under the lip -->
+          <path d="M24.5 21.4 A30.5 8.4 0 0 0 85.5 21.4 A30.5 8.4 0 0 1 24.5 21.4 Z"
+                fill="rgba(0,0,0,.22)"/>
+          <!-- a thread of light along the top of the roll -->
+          <path d="M18.6 17.6 A38 11.6 0 0 1 91.4 17.6" fill="none"
+                stroke="rgba(255,255,255,.3)" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
