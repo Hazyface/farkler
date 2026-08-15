@@ -177,10 +177,16 @@
     .tb-title{font-size:16px;letter-spacing:.06em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   }
 
+  /* The header has to stay put over the turns, so nothing in here may get between sticky and
+     the scroller. -webkit-overflow-scrolling:touch would: it puts older iPadOS on its legacy
+     accelerated scroller, which doesn't honour position:sticky at all. Momentum scrolling is
+     the default from iOS 13 on, so leaving it off costs nothing. */
   .gridwrap{flex:0 0 auto;max-height:34vh;overflow:auto;background:var(--card);
-            border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+            border-bottom:1px solid var(--line)}
   table{border-collapse:collapse;width:100%;font-size:18px}
-  thead th{position:sticky;top:0;z-index:2;background:#202d29;padding:7px 7px 11px;border:1px solid var(--line);
+  /* -webkit-sticky for iPadOS 12 and older, which want the prefix */
+  thead th{position:-webkit-sticky;position:sticky;top:0;z-index:2;background:#202d29;padding:7px 7px 11px;
+           border:1px solid var(--line);
            font-size:15px;line-height:1.15;cursor:pointer;color:var(--text);overflow:hidden}
   /* a wash behind the card, plus a solid track along the bottom you can read across the table */
   thead th .pfill{position:absolute;left:0;top:0;bottom:0;z-index:0;pointer-events:none;
@@ -638,7 +644,10 @@
   body.kbd .act.dflt::after, body.kbd .btn.dflt::after, body.kbd .ridebtn.dflt::after{
     content:"⏎";position:absolute;top:4px;right:8px;font-family:var(--font);font-size:12px;
     font-weight:700;letter-spacing:0;opacity:.5;pointer-events:none}
-  .act, .btn, .ridebtn{position:relative}
+  /* buttons only. `act` is also the scoresheet's mark for whoever's turn it is, and that
+     one is a sticky table header — handing it position:relative unpins it, so the column
+     you most want to read is the one that scrolls away. */
+  button.act, .btn, .ridebtn{position:relative}
   body.kbd .vread.dflt::before{content:"⏎ ";font-weight:700;opacity:.75}
   :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   /* a die shows focus with its own ring rather than a box drawn round a rotating cube */
