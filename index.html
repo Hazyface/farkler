@@ -2561,6 +2561,12 @@ const easy = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)
 const vOn   = () => !!(G && (G.virtual || (!G.over && !!G.players[G.cur].bot)));
 const vBox  = () => { const s = $('#surface'); return {w:s.clientWidth||320, h:s.clientHeight||220}; };
 const vSize = () => { const b = vBox(); return Math.max(28, Math.min(70, Math.min(b.w*.155, b.h*.235))); };
+/* The cup is measured off the felt the same way the dice are, against both sides of it. On
+   a tall board 42% of the width decides it; on a short landscape one that came out 77% of
+   the board's height, so the height gets a say too — the art is 1.2 times as tall as it is
+   wide, and .458 of the height keeps it to 55% of the board. */
+const vCupSize = () => { const b = vBox(); return Math.max(96, Math.min(224, b.w*.42, b.h*.458)); };
+function vCup(){ const c = $('#cup'); if(c) c.style.width = vCupSize().toFixed(1) + 'px'; }
 function vClear(){ if(G) G.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]}; }
 function vNode(){
   const sides = [1,2,3,4,5,6].map(n =>            // all lit: a die is made mid-throw
@@ -2714,6 +2720,7 @@ function vChrome(){
   const read = $('#vread'), roll = $('#rollBtn'), bank = $('#bankBtn'), me = G.players[G.cur];
 
   $('#cup').classList.toggle('hide', onTable > 0 || V.lock || G.over);
+  vCup();
 
   if(curBot()){                                  // a bot's turn: the line narrates, nothing takes taps
     read.classList.remove('tapme','bad');
@@ -3077,6 +3084,7 @@ window.addEventListener('resize', ()=>{
   clearTimeout(vResize);
   vResize = setTimeout(()=>{
     if(vOn() && !V.raf && !V.lock) vSync();
+    else if(vOn()) vCup();                  // mid-throw: the cup still has to fit the new felt
     if(G && G.over) drawChart();            // the graph is measured in pixels too
   }, 140);
 });
