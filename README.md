@@ -63,8 +63,11 @@ flat square whose pips change. Some notes on what that took:
   cube collapses to a card. The shadow is its own thing lying on the felt, spreading and going
   weak as the die gets up off the table.
 - **Which way up is a six?** Each side sits a quarter turn from the front, so the app works out
-  once, from the browser's own matrix maths, every pair of quarter turns that brings a given side
-  round to face the camera.
+  once, at load, every pair of quarter turns that brings a given side round to face the camera.
+  Sixteen combinations, six sides, plain trigonometry — no `DOMMatrix`, so nothing here depends
+  on the browser agreeing about matrices at runtime. (It was checked against `DOMMatrix` during
+  development, which is how a sign error in the first attempt turned up: the dice were landing
+  on the wrong face.)
 - **A die must not change its mind.** The number was decided before the dice left the cup, so the
   tumble has to be talked round to the right face at some point. Do that at the stop and it looks
   like a cheat — the die has visibly finished rolling and then turns over anyway. So it picks its
