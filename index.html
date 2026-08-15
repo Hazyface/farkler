@@ -519,9 +519,12 @@
              transition:opacity .3s ease}
   .cf.lit::after{opacity:0}
   /* Rounding the faces cuts a pinhole out of each corner of the cube where three of them
-     meet, and you'd see the felt straight through it. This sits across the middle of the die
-     and plugs all eight — dark, because a corner you're looking into is in shadow anyway. */
-  .cube::before{content:"";position:absolute;inset:-1%;border-radius:21%;background:#5d5850}
+     meet, and you'd see the felt straight through it. This plugs all eight — dark, because a
+     corner you're looking into is in shadow anyway. It has to be a shade wider than the die to
+     catch those sight lines, so it sits at the back, where the overhang is behind the die
+     rather than drawing a seam down the middle of every side you can see. */
+  .cube::before{content:"";position:absolute;inset:-5%;border-radius:24%;background:#4f4a44;
+                transform:translateZ(calc(var(--h) * -.98))}
   .f1{transform:translateZ(var(--h))}
   .f6{transform:rotateY(180deg) translateZ(var(--h))}
   .f2{transform:rotateX(90deg)  translateZ(var(--h))}
@@ -2288,6 +2291,25 @@ function vSync(){
   vPaint();
   vChrome();
 }
+/* What a handful is, in the fewest words the bar can hold — it can't wrap, and "Single 1 +
+   Single 1 + Single 5" is more than it can take alongside a three of a kind. Repeats get
+   counted rather than listed, and loose 1s and 5s get the short name: on a table with the
+   dice sitting right there, "a 1" is as clear as "Single 1" and a third of the width. */
+const SAY_N = ['', '', 'two', 'three', 'four', 'five', 'six'];
+function comboText(parts){
+  const out = [];
+  parts.forEach(p=>{
+    const hit = out.find(o => o.id === p.id);
+    if(hit) hit.n++; else out.push({id:p.id, lab:p.lab, n:1});
+  });
+  return out.map(o=>{
+    if(o.id === 'one' || o.id === 'five'){
+      const face = o.id === 'one' ? '1' : '5';
+      return o.n === 1 ? `a ${face}` : `${SAY_N[o.n] || o.n} ${face}s`;
+    }
+    return (o.n > 1 ? o.n + '× ' : '') + o.lab;
+  }).join(' + ');
+}
 /* the readout, the cup and the two buttons all say the same thing */
 function vChrome(){
   if(!vOn()) return;
@@ -2319,14 +2341,22 @@ function vChrome(){
       read.classList.add('tapme');
       read.onclick = vRoll;
     } else if(!sel.length){
-      read.innerHTML = G.vr.bestPts ? `✨ best here is <b>+${fmt(G.vr.bestPts)}</b> — tap to take it`
-                                    : 'tap the dice you\'re keeping';
-      if(G.vr.best && G.vr.best.length){ read.classList.add('tapme'); read.onclick = vTakeBest; }
+      // name it. "+1,500" on its own tells you nothing about whether the app has spotted the
+      // three pairs or just found a 1 and a 5 — and knowing which is the whole point of the offer
+      const idx = (G.vr.best || []).filter(i => V.dice[i]);
+      const best = idx.length ? decompose(countsOf(idx.map(i => V.dice[i].v))) : null;
+      if(best){
+        // the bar can't wrap and naming the combo costs room, so the offer gets said once,
+        // up front, instead of "best here is … — tap to take it" wrapped around it
+        read.innerHTML = `✨ tap for <b>+${fmt(best.pts)}</b> · ${esc(comboText(best.parts))}`;
+        read.classList.add('tapme');
+        read.onclick = vTakeBest;
+      } else read.textContent = 'tap the dice you\'re keeping';
     } else if(!dec){
       read.textContent = '✕ those don\'t all score — drop one';
       read.classList.add('bad');
     } else {
-      read.innerHTML = `<b>+${fmt(dec.pts)}</b> · ${esc(dec.parts.map(p=>p.lab).join(' + '))}`;
+      read.innerHTML = `<b>+${fmt(dec.pts)}</b> · ${esc(comboText(dec.parts))}`;
     }
   }
 
