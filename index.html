@@ -74,7 +74,12 @@
     -webkit-background-clip:text;background-clip:text;color:transparent;
     filter:drop-shadow(0 3px 0 rgba(0,0,0,.5)) drop-shadow(0 10px 22px rgba(255,203,71,.22));
   }
-  .logo p{margin:10px 0 0;color:var(--muted);font-size:15px;letter-spacing:.14em;text-transform:uppercase}
+  /* Sized to hold one line on a phone: at 15px with .14em of tracking the line ran a few
+     pixels long and dropped the second die onto a line by itself. The dice are tied to
+     their words with non-breaking spaces as well, so if it ever does wrap, it breaks
+     between words rather than stranding a die. */
+  .logo p{margin:10px 0 0;color:var(--muted);font-size:clamp(11px,3.4vw,15px);
+          letter-spacing:.1em;text-transform:uppercase;text-wrap:balance}
   .card{
     width:100%;max-width:560px;background:var(--card);border-radius:22px;padding:18px;
     box-shadow:var(--shadow);border:1px solid var(--line);margin-top:18px;
@@ -725,7 +730,7 @@
 <div id="setup" class="screen on">
   <div class="logo">
     <h1>FARKLER</h1>
-    <p>🎲 the dice game and scorekeeper 🎲</p>
+    <p>🎲&nbsp;the dice game &amp; scorekeeper&nbsp;🎲</p>
   </div>
 
   <!-- only there when you came in from the gear with a game still running -->
