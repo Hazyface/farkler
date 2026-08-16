@@ -22,13 +22,30 @@ python3 -m http.server 8000
 
 `sw.js` caches the app so the Home Screen icon still works when the server isn't running.
 Service workers only register on `localhost` or HTTPS — over a plain IP address the app still
-plays, it just can't save an offline copy. The 🏠 menu shows which address you're on and whether
-the offline copy took.
+plays, it just can't save an offline copy.
+
+The page itself asks the network first and only falls back to the cached copy, so a change shows
+up on the launch you're looking at rather than the one after it. The network gets 3.5 seconds to
+answer before the saved copy takes over, which is what stops a bad connection hanging the launch
+on a blank screen. The ☰ menu shows the build stamp, the address you're on, whether you came in
+from the Home Screen and whether the offline copy took — and **Get the latest version** scrubs
+every worker and cache for that address and reloads clean, for when the answer to "did the update
+land?" is no.
 
 ## Playing
 
 Setup opens on one question that changes the whole screen — **Where are the dice?** — answered by
 picking one of two tiles: on the table, or in the app. It remembers what you picked last time.
+
+Under the players: **Play to** and **Get on the board with** are both fields, grouped as you type,
+so the target reads 10,000 rather than 10000 — and the caret is put back where it was among the
+digits, not where it was in the string, or it walks left every time a comma appears in front of
+it. The opening minimum is whatever you say it is, with its own switch beside it, and it reads
+with its separator everywhere it's printed. At the bottom, **How scoring works here** shows the
+working rather than describing it: every combination that scores, drawn as the buttons you'll be
+tapping, including whatever house rules this table has saved. They're plain divs — there is
+nothing to press on the setup screen, and fifteen real buttons would be fifteen more stops on the
+way round with Tab.
 
 ### Real dice
 
@@ -43,7 +60,7 @@ Tap a button for each scoring combo you roll; they stack up in the pot. **Bank i
 
 ### Virtual dice
 
-A black cup on red felt. Tap it and six white dice spill out and scatter — a small collision
+A leather cup on red felt. Tap it and six white dice spill out and scatter — a small collision
 sim, so they bounce off the rails and off each other and land where they land. The dice are
 treated as the squares they are (a separating-axis test on four edge directions), so two of
 them meeting corner-first push apart instead of overlapping, and no two knocks come off quite
@@ -81,9 +98,25 @@ flat square whose pips change. Some notes on what that took:
 Measured over 402 settled dice: every one shows the face it actually rolled, not one changed face
 after it stopped moving, and 1,005 pairs with no overlap. A throw takes about 1.1 seconds.
 
+**The cup is drawn, not photographed.** Straight-sided, green baize in the mouth, a rolled lip and
+cream stitching under the lip, up the seam and round the base. A line running round a cylinder is
+the rim's own ellipse further down, so the stitching sags by exactly the rim's `ry` — which is why
+the curves look drawn rather than guessed. Its cast shadow is a soft ellipse of its own lying on
+the felt, for the same reason the dice have one: a `drop-shadow` filter traces the silhouette, so
+the cup wore a hard-edged trapezoid with the rim's arc cut across it — and, being a filter on the
+element, swung the whole blob round with it on every shake. It's sized off the felt the way the
+dice are, against both sides of it: 42% of the width, but no more than .458 of the height, since
+width alone put it at 77% of a short landscape board with 28px of daylight above it.
+
 - **Tap what you're keeping.** Six identical white dice — the felt tells you nothing about which
   ones are worth anything, so read your own roll. The bar adds up your picks as you go and won't
   let you set aside a handful that doesn't fully score — no leaving a stray 3 in with your three 5s.
+- **What you've picked wears a gold circle.** A circle because it has to be one: the ring hangs off
+  the die's outer box while the turning is applied to the cube inside it, so a cornered shape sat
+  crooked against a die that settled at 40°. It stands well off the die as well — a corner reaches
+  71% of the die's width from the middle where a flat side reaches 50%, so a closer ring would cut
+  through the corners of a die lying on the diagonal. The red refusal and a Rollerbot's pick share
+  the same ring.
 - **A dud makes a rude noise.** Tap a die that can't be part of any combination and it flashes red
   and farts at you.
 - **The bar knows the best combo.** With nothing selected it names the biggest thing on the table
@@ -119,14 +152,52 @@ the pot:
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
 
 Over a few hundred thousand simulated turns, Careful averages 588 a turn, Steady 602, and the
-Gambler 578 with a farkle rate of 38% against the others' 15–21%. Head to head, Steady beats
-Careful about 53–47 and the Gambler about 54–46.
+Gambler 578 with a farkle rate of 38% against the others' 15–21%. That's a turn opened with a
+fresh six and nothing inherited; in a game with riding on, picking up somebody else's pot lifts
+all of them by about ninety.
 
-They know the rules they're playing under, too: a bot that isn't on the board keeps rolling
-until it can bank the opening 500, one chasing a leader on the last lap won't bank anything
-short of the lead, and one that can cross the target takes it. Undo during a bot's turn parks
-it rather than letting it instantly replay the move you just took back — tap the bar under the
-felt to set it going again.
+They know the rules they're playing under, too: a bot that isn't on the board keeps rolling until
+it can bank its way on, one chasing a leader on the last lap won't bank anything short of the
+lead, and one that can cross the target takes it.
+
+What none of them will do is sit down and leave a fortune with a full six sitting behind it. With
+let-it-ride on, banking hands the next player the pot *and* the dice you never rolled, so a bot
+prices that present the same way the next bot will price it, and weighs it against the throw that
+would burn those dice down. Six dice come up dead once in forty-three, and no target being crossed
+is worth a gift like that — so it throws them, and keeps throwing until the odds turn. None of
+them now sits down with five or six still to throw, and only the 🐢 ever sits down on four, on one
+bank in a hundred. A bot that wants an edge before it risks anything wants one here too, so the 🐢
+is slower to burn the dice down than the 😈.
+
+Head to head over 30,000 games apiece with riding on, Steady beats Careful 51–49, the Gambler
+53–47 and the Screwball 53–47. Careful used to *lose* to the Gambler 46–54, purely by donating:
+it banks early and often, and every one of those tidy little turns left dice on the table for
+somebody greedier. It now wins that matchup 52–48. Across the same games, handovers of four or
+more dice with 2,000 or more on them went from 1.4–3.7% of the pots any bot left behind to none at
+all — bought for twenty to thirty-five points a turn and about a point of farkle rate, which is
+the trade: the points a bot doesn't take are worth less than the ones it stops handing over.
+
+Undo during a bot's turn parks it rather than letting it instantly replay the move you just took
+back — tap the bar under the felt to set it going again.
+
+### From the keyboard
+
+The whole game plays without taking a hand off the keys. <kbd>Enter</kbd> does the obvious thing
+for wherever you are — shake the cup, take what the bar is offering, throw what's left, bank,
+answer the ride, close the overlay — and whatever it would press wears a ⏎ so it's never a guess.
+Nothing shows until a key is actually pressed, so a tablet is never told about a key it hasn't got.
+
+| | |
+| --- | --- |
+| <kbd>Enter</kbd> | presses the button wearing the ⏎ |
+| <kbd>⇧ Enter</kbd> | take every scoring die and throw the rest, in one press |
+| <kbd>1</kbd>…<kbd>6</kbd> | pick up every die showing that number; again to put them back |
+| <kbd>Tab</kbd> / <kbd>Space</kbd> | walk the dice and the buttons; pick up the die you're on |
+| <kbd>⌘Z</kbd> / <kbd>⌘⇧Z</kbd> | undo and redo (<kbd>⌘Y</kbd> works too), except in a name field |
+| <kbd>Esc</kbd> | close whatever's open |
+
+### The rest of the game
+
 - **Let it ride** — when someone banks, the next player can pick up their total and keep rolling
   with the dice left on the table. Score and it's theirs; farkle and it's gone.
 - **Finishing** — first past the target starts the last lap. Everyone else gets one turn to take
@@ -136,8 +207,17 @@ felt to set it going again.
   player climbing turn by turn, the target as a dashed finish line, hollow dots where somebody
   farkled, and a count of how many times the lead actually changed hands.
 
+The top bar is seven line icons and no boxes — sound, the scoring reference, undo, redo, a gear
+for settings and players, the menu, and full screen where the browser has it. They're drawn at one
+stroke weight rather than typed as emoji, which come out in whatever colour and heft each font
+feels like, and they tint gold on press. The gear is one tap from the felt and nobody presses it
+meaning "bin this", so a game in progress is *parked* — any Rollerbot stops mid-think and a **Back
+to the game** button appears under the logo. The only door that throws a game away is NEW PLAYERS
+on the finished-game bar, where there's nothing to come back to.
+
 Undo and redo step through every single press. Players, icons, and house rules are remembered
-between games; benched players are one tap from rejoining.
+between games; benched players are one tap from rejoining. The scoresheet header stays put while
+the turns scroll under it, the rolling player's column included.
 
 ## Files
 

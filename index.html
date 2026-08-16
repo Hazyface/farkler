@@ -968,6 +968,8 @@
         <li>Roll six dice, set aside at least one scoring die, then re-roll the rest or bank.</li>
         <li>Score with all six dice and you get "hot dice" — roll all six again and keep building.</li>
         <li>Roll no scoring dice at all and it's a <b>Farkle</b> — the whole pot is gone.</li>
+        <li>With the 🚪 rule on, your first bank of the game has to reach the opening amount —
+            set it to whatever your table plays on the setup screen.</li>
       </ul>
       <h3>🏁 Finishing</h3>
       <ul>
@@ -978,10 +980,12 @@
       </ul>
       <h3>🎲 Virtual dice</h3>
       <ul>
-        <li>Shake the cup to spill six onto the felt. Dice you can't use anything for go grey.</li>
-        <li>Tap the ones you're keeping — the bar underneath adds them up as you go, and it
-            won't let you set aside a die that doesn't score.</li>
-        <li>Right after a roll the biggest combo on the table glows. Tap the bar to take it.</li>
+        <li>Shake the cup to spill six onto the felt. Six plain white dice — they tell you nothing
+            about which of them are worth anything, so read your own roll.</li>
+        <li>Tap the ones you're keeping and they wear a gold ring — the bar underneath adds them up
+            as you go, and it won't let you set aside a die that doesn't score.</li>
+        <li>Stuck? With nothing picked up, the bar names the biggest thing on the table and what
+            it's worth. Tap the bar to take it in one go.</li>
         <li><b>Set &amp; roll</b> banks those dice into your pot and throws the rest. Set all six
             and you get hot dice with a fresh six.</li>
         <li>Roll nothing at all and the app calls the farkle for you.</li>
@@ -994,7 +998,8 @@
         <li>You have to <b>score at least once</b> on those dice before you can bank — no picking up
             a pot and walking off with it. Do it and the whole thing is yours. Farkle and you lose the lot —
             but the player who banked keeps their points either way.</li>
-        <li>Not feeling lucky? Tap ✕ and roll a fresh six.</li>
+        <li>The offer shows you both sides: the pot with the dice that come with it, against a
+            fresh six with nothing in it. Not feeling lucky? Take the <b>FRESH SIX</b> ❄️.</li>
         <li>If the get-on-the-board rule is on, nobody can ride until every player has banked their
             way onto the board.</li>
       </ul>
@@ -1011,6 +1016,9 @@
             it forgets strategy and just grabs whatever scores.</li>
         <li>All of them work out that a 1 with three 2s is worth more as <em>just the 1</em> — 100 points
             and five dice to throw beats 300 points and two.</li>
+        <li>None of them will sit down and leave a fat pot with a full six behind it for you to
+            ride. If the throw that burns those dice down hardly ever comes up dead, they'll take
+            it first — even with the target already crossed.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <h3>⌨️ On a keyboard</h3>
@@ -1575,8 +1583,8 @@ const PICKABLE = [
   '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
-// shown in the 🏠 menu, so "did the update actually land?" has an answer you can read
-const BUILD = '2026-08-14 · keys';
+// shown in the ☰ menu, so "did the update actually land?" has an answer you can read
+const BUILD = '2026-08-16 · bots';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3213,6 +3221,38 @@ function botWantsRoll(n, pot, b){
   // the difference between nerve and not being able to count.
   return !!(b.nerve && on > pot * b.tempt && Math.random() < b.nerve);
 }
+
+/* ---- what you'd be leaving on the table ---- */
+/* how often n dice come up dead — straight off the same sheet, not a second opinion */
+const deadP = {};
+function botFarkle(n){
+  if(deadP[n] === undefined)
+    deadP[n] = botRolls(n).reduce((s,row) => row.opts.length ? s : s + row.p, 0);
+  return deadP[n];
+}
+/* What a pot is worth to whoever is holding it, dice and all. Past the cap the sheet stops
+   thinking — that's there to keep a bot from rolling a fortune away, not to say a fortune is
+   worth nothing — so above it fall back on the plain arithmetic: the pot survives if the
+   throw scores. The two meet close enough at the cap that nothing jumps. */
+function botHolds(n, pot, b){
+  const on = pot >= BOT_CAP ? 0 : botEV(n, pot, b);
+  const bare = (1 - botFarkle(n)) * pot;
+  return on > bare ? on : bare;
+}
+/* Banking doesn't just put the pot away: it hands the next player that pot along with however
+   much of your six you never rolled. This is what that present is worth to them — in exactly
+   the terms they'll use to decide whether to take it — and nothing at all when there's no ride
+   to be had: rule off, someone still short of the board, or the game ending on this bank. */
+function botGift(n, pot, b){
+  if(!G.letRide) return 0;
+  const next = (G.cur + 1) % G.players.length;
+  if(G.lastCaller !== null && next === G.lastCaller) return 0;
+  if(G.minOnBoard && G.players.some((p,i) => i !== G.cur && !p.turns.some(v => v > 0))) return 0;
+  const edge = botHolds(n, pot, b) - botHolds(6, 0, b);
+  return edge > 0 ? edge : 0;
+}
+// how much of its own pot a bot will put at risk rather than wrap that present up
+const GIVEAWAY = .5;
 function botPlan(b, opts, pot){
   if(b.greedy) return opts.reduce((a,o) => o.pts > a.pts ? o : a);   // grab the lot
   let best = opts[0], bv = -1;
@@ -3226,11 +3266,20 @@ function botPlan(b, opts, pot){
 function botDecide(b, n, pot){
   const me = G.players[G.cur], t = total(me);
   if(shortOfBoard(pot)) return true;                                  // not on the board yet
+  let roll;
   if(G.lastCaller !== null && G.cur !== G.lastCaller)                 // last lap: second place is last place
-    return t + pot <= total(G.players[G.lastCaller]);
-  if(G.lastCaller === null && t + pot >= G.target) return false;      // over the line — take it
-  if(b.greedy) return pot < 300 || n >= 4;
-  return botWantsRoll(n, pot, b);
+    roll = t + pot <= total(G.players[G.lastCaller]);
+  else if(G.lastCaller === null && t + pot >= G.target) roll = false; // over the line — take it
+  else if(b.greedy) roll = pot < 300 || n >= 4;
+  else roll = botWantsRoll(n, pot, b);
+  // Every one of those reasons to bank is about the pot, and none of them is about the dice
+  // left sitting behind it. Nobody sets down a fortune with a full six for the next player to
+  // throw at it — crossing the target line doesn't change that, it just means the fortune is
+  // worth handing over. So when the throw that burns those dice down comes up dead less often
+  // than the present costs, burn them down first. A bot that wants an edge before it risks
+  // anything wants one here too, which is what keeps the 🐢 slower to do it than the 😈.
+  if(!roll && botFarkle(n) * pot * b.bias < GIVEAWAY * botGift(n, pot, b)) return true;
+  return roll;
 }
 
 /* ---- playing it out, slowly enough to watch ---- */
@@ -3287,7 +3336,7 @@ function botAfterRoll(){ botWait(640, ()=>{ const b = botBrain(); if(b) botMove(
 function botRide(b){
   const tbl = G.table;
   if(!tbl){ botTurn(); return; }
-  const take = botEV(6 - (tbl.spent||0), tbl.pts, b) > botEV(6, 0, b);
+  const take = botHolds(6 - (tbl.spent||0), tbl.pts, b) > botHolds(6, 0, b);
   botSay(`<b>${botName()}</b> eyes that ${fmt(tbl.pts)} on the table…`);
   botWait(1100, ()=>{
     if(take){ takeRide(); toast(`${botName()} TAKES IT 🎠`); }
