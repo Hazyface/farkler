@@ -151,31 +151,43 @@ the pot:
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
 
-Over a few hundred thousand simulated turns, Careful averages 588 a turn, Steady 602, and the
-Gambler 578 with a farkle rate of 38% against the others' 15–21%. That's a turn opened with a
-fresh six and nothing inherited; in a game with riding on, picking up somebody else's pot lifts
-all of them by about ninety.
+Over a few hundred thousand simulated turns, Careful averages 571 a turn, Steady 575 and the
+Gambler 560, with the Gambler farkling 40% of the time against the others' 17–23%. That's a turn
+opened with a fresh six and nothing inherited; in a game with riding on, picking up somebody
+else's pot lifts all of them by about ninety.
 
 They know the rules they're playing under, too: a bot that isn't on the board keeps rolling until
 it can bank its way on, one chasing a leader on the last lap won't bank anything short of the
 lead, and one that can cross the target takes it.
 
-What none of them will do is sit down and leave a fortune with a full six sitting behind it. With
+What none of them will do is sit down and leave a fortune with a handful of dice behind it. With
 let-it-ride on, banking hands the next player the pot *and* the dice you never rolled, so a bot
-prices that present the same way the next bot will price it, and weighs it against the throw that
-would burn those dice down. Six dice come up dead once in forty-three, and no target being crossed
-is worth a gift like that — so it throws them, and keeps throwing until the odds turn. None of
-them now sits down with five or six still to throw, and only the 🐢 ever sits down on four, on one
-bank in a hundred. A bot that wants an edge before it risks anything wants one here too, so the 🐢
-is slower to burn the dice down than the 😈.
+prices that present the same way the next bot will price it, and weighs it against what throwing
+those dice again would cost.
+
+That cost is the part worth getting right. The obvious reading — a dead throw takes the pot, so
+charge the odds of one — bills a three-dice throw for the 28% of the time it comes up empty and
+gives it no credit at all for the other 72%, where it keeps the pot *and* adds to it. Priced that
+way the middle bot would sit down on three dice with three thousand behind it, which is nobody's
+idea of playing the odds. So the cost is what the pot is worth in hand less what it's worth
+thrown again, read off the same sheet that priced the present, and what a bot makes of that cost
+is its bias — which is what keeps the 🐢 slower to burn a handful down than the 😈.
+
+The upshot is that a pot worth having only ever goes with one or two dice behind it, where the
+odds really do favour sitting down. Steady hands over three dice on nothing above 950, Careful on
+nothing above 1,150, and the Gambler won't sit down on three at all.
 
 Head to head over 30,000 games apiece with riding on, Steady beats Careful 51–49, the Gambler
-53–47 and the Screwball 53–47. Careful used to *lose* to the Gambler 46–54, purely by donating:
+52–48 and the Screwball 52–48. Careful used to *lose* to the Gambler 46–54, purely by donating:
 it banks early and often, and every one of those tidy little turns left dice on the table for
-somebody greedier. It now wins that matchup 52–48. Across the same games, handovers of four or
-more dice with 2,000 or more on them went from 1.4–3.7% of the pots any bot left behind to none at
-all — bought for twenty to thirty-five points a turn and about a point of farkle rate, which is
-the trade: the points a bot doesn't take are worth less than the ones it stops handing over.
+somebody greedier. It now wins that matchup 52–48. Across the same games, handovers of three or
+more dice with 1,500 or more on them went from 8–14% of the pots a bot left behind to none at all
+— the worst single one seen before was 14,500 — and Steady no longer hands over three dice with
+so much as a thousand on them. It is bought for thirteen to twenty-six points a turn and about
+two points of farkle rate, and costs something in raw wins too: pitted straight against the older,
+looser setting the tighter one comes out around 49–51. That is the trade, and it is the right way
+round for a game with a person on the other side of it — half a point of win rate is invisible,
+and a bot setting down three thousand for you to pick up is not.
 
 Undo during a bot's turn parks it rather than letting it instantly replay the move you just took
 back — tap the bar under the felt to set it going again.

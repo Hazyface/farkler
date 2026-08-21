@@ -1016,9 +1016,10 @@
             it forgets strategy and just grabs whatever scores.</li>
         <li>All of them work out that a 1 with three 2s is worth more as <em>just the 1</em> — 100 points
             and five dice to throw beats 300 points and two.</li>
-        <li>None of them will sit down and leave a fat pot with a full six behind it for you to
-            ride. If the throw that burns those dice down hardly ever comes up dead, they'll take
-            it first — even with the target already crossed.</li>
+        <li>None of them will sit down and leave a fat pot with a handful of dice behind it for
+            you to ride. If throwing those dice again costs them less than the present would,
+            they throw them first — even with the target already crossed. So a pot worth taking
+            off them comes with one or two dice behind it, not four.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <h3>⌨️ On a keyboard</h3>
@@ -1584,7 +1585,7 @@ const PICKABLE = [
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read
-const BUILD = '2026-08-16 · bots';
+const BUILD = '2026-08-21 · handover';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3251,8 +3252,18 @@ function botGift(n, pot, b){
   const edge = botHolds(n, pot, b) - botHolds(6, 0, b);
   return edge > 0 ? edge : 0;
 }
-// how much of its own pot a bot will put at risk rather than wrap that present up
-const GIVEAWAY = .5;
+/* What rolling on costs. Not the whole pot — a throw that scores keeps it and adds to it —
+   but the value the pot loses by being thrown again, read off the same sheet that priced the
+   present. Charging the dead throw alone was the mistake: it billed a three-dice throw for the
+   28% of the time it comes up empty and gave it no credit for the other 72%, so the middle bot
+   would sit down on three dice with three thousand behind it rather than take a throw it was
+   favoured to survive. What the bot makes of that cost is its bias, the same as everywhere. */
+function botCost(n, pot, b){
+  const c = pot - botHolds(n, pot, b);
+  return c > 0 ? c * b.bias : 0;
+}
+// how much of that a bot will wear rather than wrap the present up
+const GIVEAWAY = .75;
 function botPlan(b, opts, pot){
   if(b.greedy) return opts.reduce((a,o) => o.pts > a.pts ? o : a);   // grab the lot
   let best = opts[0], bv = -1;
@@ -3275,10 +3286,10 @@ function botDecide(b, n, pot){
   // Every one of those reasons to bank is about the pot, and none of them is about the dice
   // left sitting behind it. Nobody sets down a fortune with a full six for the next player to
   // throw at it — crossing the target line doesn't change that, it just means the fortune is
-  // worth handing over. So when the throw that burns those dice down comes up dead less often
-  // than the present costs, burn them down first. A bot that wants an edge before it risks
-  // anything wants one here too, which is what keeps the 🐢 slower to do it than the 😈.
-  if(!roll && botFarkle(n) * pot * b.bias < GIVEAWAY * botGift(n, pot, b)) return true;
+  // worth handing over. So when throwing those dice again costs less than the present would,
+  // throw them. A bot that wants an edge before it risks anything wants one here too, which is
+  // what keeps the 🐢 slower to burn a handful down than the 😈.
+  if(!roll && botCost(n, pot, b) < GIVEAWAY * botGift(n, pot, b)) return true;
   return roll;
 }
 
