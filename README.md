@@ -151,52 +151,57 @@ the pot:
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
 
-Over a few hundred thousand simulated turns, Careful averages 574 a turn, Steady 575 and the
-Gambler 559, with the Gambler farkling 40% of the time against the others' 17–23%. That's a turn
+Over a few hundred thousand simulated turns, Careful averages 569 a turn, Steady 574 and the
+Gambler 561, with the Gambler farkling 36% of the time against the others' 21–25%. That's a turn
 opened with a fresh six and nothing inherited; in a game with riding on, picking up somebody
 else's pot lifts all of them by about ninety.
 
-They know the rules they're playing under, too: a bot that isn't on the board keeps rolling until
-it can bank its way on, one chasing a leader on the last lap won't bank anything short of the
-lead, and one that can cross the target takes it.
+They know the rules they're playing under, too: one chasing a leader on the last lap won't bank
+anything short of the lead, and one that can cross the target takes it.
 
-What none of them will do is sit down and leave a fortune with a handful of dice behind it. With
-let-it-ride on, banking hands the next player the pot *and* the dice you never rolled, so a bot
-prices that present the same way the next bot will price it, and weighs it against what throwing
-those dice again would cost.
+### What they'll leave you
 
-That cost is the part worth getting right. The obvious reading — a dead throw takes the pot, so
-charge the odds of one — bills a three-dice throw for the 28% of the time it comes up empty and
-gives it no credit at all for the other 72%, where it keeps the pot *and* adds to it. Priced that
-way the middle bot would sit down on three dice with three thousand behind it, which is nobody's
-idea of playing the odds. So the cost is what the pot is worth in hand less what it's worth
-thrown again, read off the same sheet that priced the present, and what a bot makes of that cost
-is its bias — which is what keeps the 🐢 slower to burn a handful down than the 😈.
+With let-it-ride on, banking hands the next player the pot *and* the dice you never rolled. Three
+dice score seven throws in ten, so handing that over with a pot behind it is a present, and how
+freely a bot gives one is temperament rather than arithmetic. Each profile says so in three
+numbers:
 
-Arithmetic only takes that so far, though, because three dice score seven throws in ten and
-handing a throw that easy to the next player is a matter of temperament, not sums. So each bot
-also carries the most dice it will ever sit down on when what it's leaving is worth picking up —
-`sits` — and the 🐢 is the only one that will do it on three. Steady and the Gambler stand up and
-throw them; Careful, quitting while it's ahead, will hand over three dice on anything up to 1,150.
+| | |
+| --- | --- |
+| `sits` | the most dice it will ever sit down on and leave behind |
+| `push` | how few dice it will stand back up on, when the pot is too small to bother with |
+| `onBoard` | how hard it pushes while it's still getting on the board |
 
-The upshot is that a pot worth having goes with one or two dice behind it, where the odds really
-do favour sitting down. Steady will only leave three dice on 650 or less, which is the point at
-which the next player would rather have a fresh six anyway — so nothing it leaves on three dice
-is worth taking. The temperament rule costs nothing measurable: pitted straight against the same
-bot without it, over 40,000 games apiece, every one of them comes out 50–50. It buys the look of
-the thing, and the band it covers is one where rolling and banking were a coin flip regardless.
+Which comes out as:
 
-Head to head over 30,000 games apiece with riding on, Steady beats Careful 51–49, the Gambler
-53–47 and the Screwball 54–46. Careful used to *lose* to the Gambler 46–54, purely by donating:
-it banks early and often, and every one of those tidy little turns left dice on the table for
-somebody greedier. It now wins that matchup 52–48. Across the same games, handovers of three or
-more dice with 1,500 or more on them went from 8–14% of the pots a bot left behind to none at all
-— the worst single one seen before was 14,500 — and Steady no longer hands over three dice with
-so much as a thousand on them. It is bought for thirteen to twenty-six points a turn and about
-two points of farkle rate, and costs something in raw wins too: pitted straight against the older,
-looser setting the tighter one comes out around 49–51. That is the trade, and it is the right way
-round for a game with a person on the other side of it — half a point of win rate is invisible,
-and a bot setting down three thousand for you to pick up is not.
+- **Nobody hands over three dice or more.** They stand up and throw them, whatever the pot and
+  whether or not the target is already crossed.
+- **Except the 🐢**, which will sit on three — but only under 700, and even then only on the toss
+  of a coin. It quits while it's ahead; that is the whole of its character.
+- **The 😈 dithers on the small ones.** Under 500 with one or two dice it tosses a coin to throw
+  again, and another on whatever that leaves, chasing the clean sweep back to a fresh six. Over
+  500 it stops and banks like everyone else — the surprise being that a gambler is the one bot
+  that will pass up a two-dice throw on a decent pot.
+- **Nothing applies when there's nobody to hand to.** Rule off, someone still short of the board,
+  or a bank that ends the game — in any of those the dice go back in the cup unseen, and the
+  arithmetic decides on its own.
+
+Getting on the board is its own phase, because nobody can ride until everybody is on. So there is
+nothing to protect and no reason to risk anything: 🐢 and 🤖 bank the moment they're over the
+opening minimum and hand over however many dice that leaves, unless they've swept all six and are
+holding a fresh handful. The 😈 goes a little further, riding out a four-, five- or six-dice
+handful, but banks like the rest once it's over the line with three or fewer.
+
+Underneath all of it the sheet still runs: a bot rolls whenever rolling is plainly worth more
+than banking, and what it makes of a close call is its bias. The temperament rules only ever come
+up when the sheet has said *bank* — and for the 😈's coin toss, which replaces the sheet outright,
+because the sheet would throw every one of those and the point is that it hesitates.
+
+Head to head over 30,000 games apiece with riding on, it is a closer field than it was: Careful
+and Steady are level at 50–50, Steady takes the Gambler 51–49, Careful takes the Gambler 51–49,
+and Steady beats the Screwball 52–47. Against the older, cannier setting they come out level too
+— 50–50 for Careful and the Gambler, a point down for Steady. The character is worth more than
+the point.
 
 Undo during a bot's turn parks it rather than letting it instantly replay the move you just took
 back — tap the bar under the felt to set it going again.

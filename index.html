@@ -1016,12 +1016,16 @@
             it forgets strategy and just grabs whatever scores.</li>
         <li>All of them work out that a 1 with three 2s is worth more as <em>just the 1</em> — 100 points
             and five dice to throw beats 300 points and two.</li>
-        <li>None of them will sit down and leave a fat pot with a handful of dice behind it for
-            you to ride. If throwing those dice again costs them less than the present would,
-            they throw them first — even with the target already crossed.</li>
-        <li>Three dice score seven throws in ten, and only the 🐢 will hand a throw that easy to
-            you with a pot behind it. Everyone else stands up and throws them — so what you get
-            offered comes with one or two dice, not a handful.</li>
+        <li>Three dice score seven throws in ten, so <b>nobody hands over three or more</b> — they
+            stand up and throw them, whatever the pot, target crossed or not. What you get offered
+            comes with one or two dice behind it, not a handful.</li>
+        <li>Except the 🐢, which will sit on three if the pot is under 700 — and even then only
+            half the time. It quits while it's ahead; that's the whole of it.</li>
+        <li>The 😈 dithers on the small ones: under 500 with a die or two left it tosses a coin
+            to throw again, and again on what that leaves. Over 500 it banks like everyone else.</li>
+        <li>Nobody can ride until everyone is on the board, so until then there's nothing to
+            protect: the 🐢 and 🤖 bank the moment they're over the opening amount and leave
+            whatever's lying there, unless they've just swept all six.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <h3>⌨️ On a keyboard</h3>
@@ -1589,8 +1593,8 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
 // build step has nothing else to stamp it.
-const VERSION = '1.5.0';
-const BUILT   = '2026-08-22 00:17';
+const VERSION = '1.6.0';
+const BUILT   = '2026-08-22 00:41';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3112,19 +3116,27 @@ window.addEventListener('resize', ()=>{
    is worth 300 all in — but keeping just the 1 is worth about 400, because five dice
    to throw again beat two. Every level below the first works that out for itself.
    ======================================================================= */
-/* sits: the most dice it will ever sit down on and leave behind, when what it's leaving is
-   worth somebody picking up. Three dice score seven throws in ten, and nobody hands a throw
-   that easy to the next player along with the pot behind it — only a 🐢 quitting while it's
-   ahead would even think about it. Below the line it's arithmetic; this is temperament. */
+/* Temperament, in plain numbers, on top of the arithmetic below.
+
+   sits      the most dice it will ever sit down on and leave for the next player. Three dice
+             score seven throws in ten and nobody hands a throw that easy over with a pot
+             behind it — except the 🐢, and only under sitUnder, and only sitOdds of the time.
+   push      the 😈 alone stands back up on this many dice or fewer when the pot is under
+             pushUnder — pushOdds of the time, and again on whatever that leaves, chasing the
+             clean sweep back to a fresh six.
+   onBoard   while it's still getting on the board nothing can be ridden, so the pot is worth
+             more in the book than on the felt: it banks the moment it's over the line unless
+             it's holding at least this many dice. Six means only a clean sweep keeps it up. */
 const BOTS = {
   careful:   {name:'Careful',  icon:'🐢', tag:'quits while ahead',
-              bias:1.24, nerve:0,   tempt:1,    sits:3},
+              bias:1.24, nerve:0,   tempt:1,    sits:3, sitUnder:700, sitOdds:.5, onBoard:6},
   steady:    {name:'Steady',   icon:'🤖', tag:'plays the odds',
-              bias:1.02, nerve:.06, tempt:.85,  sits:2},
+              bias:1.02, nerve:.06, tempt:.85,  sits:2, onBoard:6},
   gambler:   {name:'Gambler',  icon:'😈', tag:'rolls on two',
-              bias:0.85, nerve:.30, tempt:.75,  sits:2},
+              bias:0.85, nerve:.30, tempt:.75,  sits:2, push:2, pushUnder:500, pushOdds:.5,
+              onBoard:4},
   screwball: {name:'Screwball',icon:'🤪', tag:'unpredictable',
-              bias:1.02, nerve:.2, tempt:.8,    sits:2, random:true}
+              bias:1.02, nerve:.2, tempt:.8,    sits:2, onBoard:6, random:true}
 };
 /* The Screwball draws a new temperament at the top of every turn and plays the whole turn
    in it. Biases come off a fixed ladder so the tables it builds stay cached, and one turn
@@ -3132,8 +3144,7 @@ const BOTS = {
 const WILD = [0.72, 0.82, 0.92, 1.02, 1.14, 1.30, 1.45];
 function botMoodFor(){
   const bias = pick(WILD), greedy = Math.random() < .17;
-  // a turn spent playing it safe is a turn it would sit on three, the way the 🐢 does
-  return {bias, nerve:R(0,.4), tempt:R(.6,.9), greedy, sits: bias >= 1.14 ? 3 : 2,
+  return {bias, nerve:R(0,.4), tempt:R(.6,.9), greedy,
           mood: greedy      ? 'is just grabbing whatever scores 🤲'
               : bias >= 1.3 ? 'is playing it safe today 😇'
               : bias >= 1.14? 'is being sensible for once 🙂'
@@ -3254,11 +3265,17 @@ function botHolds(n, pot, b){
    much of your six you never rolled. This is what that present is worth to them — in exactly
    the terms they'll use to decide whether to take it — and nothing at all when there's no ride
    to be had: rule off, someone still short of the board, or the game ending on this bank. */
-function botGift(n, pot, b){
-  if(!G.letRide) return 0;
+// is there anybody to leave it to at all? Rule off, somebody still short of the board, or this
+// bank ending the game — in any of those the dice go back in the cup and nobody sees them.
+function botHandsOn(){
+  if(!G.letRide) return false;
   const next = (G.cur + 1) % G.players.length;
-  if(G.lastCaller !== null && next === G.lastCaller) return 0;
-  if(G.minOnBoard && G.players.some((p,i) => i !== G.cur && !p.turns.some(v => v > 0))) return 0;
+  if(G.lastCaller !== null && next === G.lastCaller) return false;
+  if(G.minOnBoard && G.players.some((p,i) => i !== G.cur && !p.turns.some(v => v > 0))) return false;
+  return true;
+}
+function botGift(n, pot, b){
+  if(!botHandsOn()) return 0;
   const edge = botHolds(n, pot, b) - botHolds(6, 0, b);
   return edge > 0 ? edge : 0;
 }
@@ -3287,11 +3304,18 @@ function botPlan(b, opts, pot){
 function botDecide(b, n, pot){
   const me = G.players[G.cur], t = total(me);
   if(shortOfBoard(pot)) return true;                                  // not on the board yet
+  // over the line but still not on the board: nothing can be ridden until everybody is, so
+  // there is nothing to protect and no reason to risk it. Only a handful keeps it on its feet.
+  if(G.minOnBoard && t === 0) return n >= b.onBoard;
   let roll;
   if(G.lastCaller !== null && G.cur !== G.lastCaller)                 // last lap: second place is last place
     roll = t + pot <= total(G.players[G.lastCaller]);
   else if(G.lastCaller === null && t + pot >= G.target) roll = false; // over the line — take it
   else if(b.greedy) roll = pot < 300 || n >= 4;
+  // the 😈 on a pot too small to bother with: a coin toss to roll, and another on whatever
+  // that leaves, chasing the clean sweep back to a fresh six. It replaces the sheet rather than
+  // adding to it — the sheet would throw every one of these, and the point is that it dithers.
+  else if(b.push && n <= b.push && pot < b.pushUnder) roll = Math.random() < b.pushOdds;
   else roll = botWantsRoll(n, pot, b);
   // Every one of those reasons to bank is about the pot, and none of them is about the dice
   // left sitting behind it. Nobody sets down a fortune with a full six for the next player to
@@ -3300,11 +3324,11 @@ function botDecide(b, n, pot){
   // throw them. A bot that wants an edge before it risks anything wants one here too, which is
   // what keeps the 🐢 slower to burn a handful down than the 😈.
   if(roll) return true;
-  const gift = botGift(n, pot, b);
-  // temperament first: more dice than this one will sit on, and there's a pot behind them
-  // worth somebody taking, and it throws them whatever the arithmetic makes of it
-  if(gift > 0 && n > b.sits) return true;
-  return botCost(n, pot, b) < GIVEAWAY * gift;
+  if(!botHandsOn()) return false;              // nobody to leave it to, so banking costs nothing
+  if(n > b.sits) return true;                  // more dice than it will sit on: stand up, throw them
+  // the one handful it will sit on, it sits on for a small pot and the toss of a coin
+  if(n === b.sits && b.sitUnder) return pot >= b.sitUnder || Math.random() < b.sitOdds;
+  return botCost(n, pot, b) < GIVEAWAY * botGift(n, pot, b);
 }
 
 /* ---- playing it out, slowly enough to watch ---- */
