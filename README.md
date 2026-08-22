@@ -27,10 +27,10 @@ plays, it just can't save an offline copy.
 The page itself asks the network first and only falls back to the cached copy, so a change shows
 up on the launch you're looking at rather than the one after it. The network gets 3.5 seconds to
 answer before the saved copy takes over, which is what stops a bad connection hanging the launch
-on a blank screen. The ☰ menu shows the build stamp, the address you're on, whether you came in
-from the Home Screen and whether the offline copy took — and **Get the latest version** scrubs
-every worker and cache for that address and reloads clean, for when the answer to "did the update
-land?" is no.
+on a blank screen. The ☰ menu shows the version and the time it was built, the address you're on,
+whether you came in from the Home Screen and whether the offline copy took — and **Get the latest
+version** scrubs every worker and cache for that address and reloads clean, for when the answer
+to "did the update land?" is no.
 
 ## Playing
 
@@ -151,8 +151,8 @@ the pot:
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
 
-Over a few hundred thousand simulated turns, Careful averages 571 a turn, Steady 575 and the
-Gambler 560, with the Gambler farkling 40% of the time against the others' 17–23%. That's a turn
+Over a few hundred thousand simulated turns, Careful averages 574 a turn, Steady 575 and the
+Gambler 559, with the Gambler farkling 40% of the time against the others' 17–23%. That's a turn
 opened with a fresh six and nothing inherited; in a game with riding on, picking up somebody
 else's pot lifts all of them by about ninety.
 
@@ -173,12 +173,21 @@ idea of playing the odds. So the cost is what the pot is worth in hand less what
 thrown again, read off the same sheet that priced the present, and what a bot makes of that cost
 is its bias — which is what keeps the 🐢 slower to burn a handful down than the 😈.
 
-The upshot is that a pot worth having only ever goes with one or two dice behind it, where the
-odds really do favour sitting down. Steady hands over three dice on nothing above 950, Careful on
-nothing above 1,150, and the Gambler won't sit down on three at all.
+Arithmetic only takes that so far, though, because three dice score seven throws in ten and
+handing a throw that easy to the next player is a matter of temperament, not sums. So each bot
+also carries the most dice it will ever sit down on when what it's leaving is worth picking up —
+`sits` — and the 🐢 is the only one that will do it on three. Steady and the Gambler stand up and
+throw them; Careful, quitting while it's ahead, will hand over three dice on anything up to 1,150.
+
+The upshot is that a pot worth having goes with one or two dice behind it, where the odds really
+do favour sitting down. Steady will only leave three dice on 650 or less, which is the point at
+which the next player would rather have a fresh six anyway — so nothing it leaves on three dice
+is worth taking. The temperament rule costs nothing measurable: pitted straight against the same
+bot without it, over 40,000 games apiece, every one of them comes out 50–50. It buys the look of
+the thing, and the band it covers is one where rolling and banking were a coin flip regardless.
 
 Head to head over 30,000 games apiece with riding on, Steady beats Careful 51–49, the Gambler
-52–48 and the Screwball 52–48. Careful used to *lose* to the Gambler 46–54, purely by donating:
+53–47 and the Screwball 54–46. Careful used to *lose* to the Gambler 46–54, purely by donating:
 it banks early and often, and every one of those tidy little turns left dice on the table for
 somebody greedier. It now wins that matchup 52–48. Across the same games, handovers of three or
 more dice with 1,500 or more on them went from 8–14% of the pots a bot left behind to none at all

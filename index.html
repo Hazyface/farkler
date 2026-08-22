@@ -1018,8 +1018,10 @@
             and five dice to throw beats 300 points and two.</li>
         <li>None of them will sit down and leave a fat pot with a handful of dice behind it for
             you to ride. If throwing those dice again costs them less than the present would,
-            they throw them first — even with the target already crossed. So a pot worth taking
-            off them comes with one or two dice behind it, not four.</li>
+            they throw them first — even with the target already crossed.</li>
+        <li>Three dice score seven throws in ten, and only the 🐢 will hand a throw that easy to
+            you with a pot behind it. Everyone else stands up and throws them — so what you get
+            offered comes with one or two dice, not a handful.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <h3>⌨️ On a keyboard</h3>
@@ -1584,8 +1586,11 @@ const PICKABLE = [
   '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
-// shown in the ☰ menu, so "did the update actually land?" has an answer you can read
-const BUILD = '2026-08-21 · handover';
+// shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
+// VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
+// build step has nothing else to stamp it.
+const VERSION = '1.5.0';
+const BUILT   = '2026-08-22 00:17';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3107,15 +3112,19 @@ window.addEventListener('resize', ()=>{
    is worth 300 all in — but keeping just the 1 is worth about 400, because five dice
    to throw again beat two. Every level below the first works that out for itself.
    ======================================================================= */
+/* sits: the most dice it will ever sit down on and leave behind, when what it's leaving is
+   worth somebody picking up. Three dice score seven throws in ten, and nobody hands a throw
+   that easy to the next player along with the pot behind it — only a 🐢 quitting while it's
+   ahead would even think about it. Below the line it's arithmetic; this is temperament. */
 const BOTS = {
   careful:   {name:'Careful',  icon:'🐢', tag:'quits while ahead',
-              bias:1.24, nerve:0,   tempt:1},
+              bias:1.24, nerve:0,   tempt:1,    sits:3},
   steady:    {name:'Steady',   icon:'🤖', tag:'plays the odds',
-              bias:1.02, nerve:.06, tempt:.85},
+              bias:1.02, nerve:.06, tempt:.85,  sits:2},
   gambler:   {name:'Gambler',  icon:'😈', tag:'rolls on two',
-              bias:0.85, nerve:.30, tempt:.75},
+              bias:0.85, nerve:.30, tempt:.75,  sits:2},
   screwball: {name:'Screwball',icon:'🤪', tag:'unpredictable',
-              bias:1.02, nerve:.2, tempt:.8, random:true}
+              bias:1.02, nerve:.2, tempt:.8,    sits:2, random:true}
 };
 /* The Screwball draws a new temperament at the top of every turn and plays the whole turn
    in it. Biases come off a fixed ladder so the tables it builds stay cached, and one turn
@@ -3123,7 +3132,8 @@ const BOTS = {
 const WILD = [0.72, 0.82, 0.92, 1.02, 1.14, 1.30, 1.45];
 function botMoodFor(){
   const bias = pick(WILD), greedy = Math.random() < .17;
-  return {bias, nerve:R(0,.4), tempt:R(.6,.9), greedy,
+  // a turn spent playing it safe is a turn it would sit on three, the way the 🐢 does
+  return {bias, nerve:R(0,.4), tempt:R(.6,.9), greedy, sits: bias >= 1.14 ? 3 : 2,
           mood: greedy      ? 'is just grabbing whatever scores 🤲'
               : bias >= 1.3 ? 'is playing it safe today 😇'
               : bias >= 1.14? 'is being sensible for once 🙂'
@@ -3289,8 +3299,12 @@ function botDecide(b, n, pot){
   // worth handing over. So when throwing those dice again costs less than the present would,
   // throw them. A bot that wants an edge before it risks anything wants one here too, which is
   // what keeps the 🐢 slower to burn a handful down than the 😈.
-  if(!roll && botCost(n, pot, b) < GIVEAWAY * botGift(n, pot, b)) return true;
-  return roll;
+  if(roll) return true;
+  const gift = botGift(n, pot, b);
+  // temperament first: more dice than this one will sit on, and there's a pot behind them
+  // worth somebody taking, and it throws them whatever the arithmetic makes of it
+  if(gift > 0 && n > b.sits) return true;
+  return botCost(n, pot, b) < GIVEAWAY * gift;
 }
 
 /* ---- playing it out, slowly enough to watch ---- */
@@ -3569,7 +3583,8 @@ function refreshDiag(){
   else sw = '<span class="warn">needs a localhost address</span>';
 
   $('#diag').innerHTML =
-    `<div><b>Version</b> ${esc(BUILD)}</div>` +
+    `<div><b>Version</b> ${esc(VERSION)}</div>` +
+    `<div><b>Built</b> ${esc(BUILT)}</div>` +
     `<div><b>Address</b> ${esc(location.href)}</div>` +
     `<div><b>Launched</b> ${standalone ? 'from the Home Screen' : 'in the browser'}</div>` +
     `<div><b>Offline copy</b> ${sw}</div>` +
