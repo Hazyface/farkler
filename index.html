@@ -1023,9 +1023,10 @@
             half the time. It quits while it's ahead; that's the whole of it.</li>
         <li>The 😈 dithers on the small ones: under 500 with a die or two left it tosses a coin
             to throw again, and again on what that leaves. Over 500 it banks like everyone else.</li>
-        <li>Nobody can ride until everyone is on the board, so until then there's nothing to
-            protect: the 🐢 and 🤖 bank the moment they're over the opening amount and leave
-            whatever's lying there, unless they've just swept all six.</li>
+        <li>Nobody can ride until <em>everyone</em> is on the board, so while anybody is still
+            short of it there's nothing to protect: the 🐢 and 🤖 bank the moment they're over
+            the opening amount and leave whatever's lying there, unless they've just swept all
+            six. The 😈 holds on for a bigger handful, but banks on three or fewer.</li>
         <li>Undo during a robot's turn parks it. Tap the bar under the felt to set it going again.</li>
       </ul>
       <h3>⌨️ On a keyboard</h3>
@@ -1593,8 +1594,8 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
 // build step has nothing else to stamp it.
-const VERSION = '1.6.0';
-const BUILT   = '2026-08-22 00:41';
+const VERSION = '1.6.1';
+const BUILT   = '2026-08-22 00:58';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3304,9 +3305,11 @@ function botPlan(b, opts, pot){
 function botDecide(b, n, pot){
   const me = G.players[G.cur], t = total(me);
   if(shortOfBoard(pot)) return true;                                  // not on the board yet
-  // over the line but still not on the board: nothing can be ridden until everybody is, so
-  // there is nothing to protect and no reason to risk it. Only a handful keeps it on its feet.
-  if(G.minOnBoard && t === 0) return n >= b.onBoard;
+  // Nobody can ride until every player is on the board, so while anybody is still short of it
+  // there is no such thing as leaving too much behind — the dice go back in the cup either way.
+  // Nothing to protect and no reason to risk it: take the points. Only a handful worth throwing
+  // keeps a bot on its feet, and a clean sweep always does.
+  if(G.minOnBoard && !everyoneOnBoard()) return n >= b.onBoard;
   let roll;
   if(G.lastCaller !== null && G.cur !== G.lastCaller)                 // last lap: second place is last place
     roll = t + pot <= total(G.players[G.lastCaller]);

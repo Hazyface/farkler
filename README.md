@@ -151,7 +151,7 @@ the pot:
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
 
-Over a few hundred thousand simulated turns, Careful averages 569 a turn, Steady 574 and the
+Over a few hundred thousand simulated turns, Careful averages 567 a turn, Steady 574 and the
 Gambler 561, with the Gambler farkling 36% of the time against the others' 21–25%. That's a turn
 opened with a fresh six and nothing inherited; in a game with riding on, picking up somebody
 else's pot lifts all of them by about ninety.
@@ -186,8 +186,10 @@ Which comes out as:
   or a bank that ends the game — in any of those the dice go back in the cup unseen, and the
   arithmetic decides on its own.
 
-Getting on the board is its own phase, because nobody can ride until everybody is on. So there is
-nothing to protect and no reason to risk anything: 🐢 and 🤖 bank the moment they're over the
+The opening is its own phase, and the phase lasts as long as *anybody* is still short of the
+board — not just the bot having the turn. Nobody can ride until everyone is on, so until then
+there is no such thing as leaving too much behind: the dice go back in the cup either way. With
+nothing to protect and no reason to risk anything, 🐢 and 🤖 bank the moment they're over the
 opening minimum and hand over however many dice that leaves, unless they've swept all six and are
 holding a fresh handful. The 😈 goes a little further, riding out a four-, five- or six-dice
 handful, but banks like the rest once it's over the line with three or fewer.
@@ -197,11 +199,11 @@ than banking, and what it makes of a close call is its bias. The temperament rul
 up when the sheet has said *bank* — and for the 😈's coin toss, which replaces the sheet outright,
 because the sheet would throw every one of those and the point is that it hesitates.
 
-Head to head over 30,000 games apiece with riding on, it is a closer field than it was: Careful
-and Steady are level at 50–50, Steady takes the Gambler 51–49, Careful takes the Gambler 51–49,
-and Steady beats the Screwball 52–47. Against the older, cannier setting they come out level too
-— 50–50 for Careful and the Gambler, a point down for Steady. The character is worth more than
-the point.
+Head to head over 30,000 games apiece with riding on, it is a much closer field than it was:
+Careful, Steady and the Gambler are level with each other inside a point, and only the Screwball
+trails, at 53–47 to Steady. Turn averages are 567, 574 and 561, farkling 21%, 25% and 36%.
+Against the older, cannier setting each of them gives up something under a point. The character
+is worth more than the point.
 
 Undo during a bot's turn parks it rather than letting it instantly replay the move you just took
 back — tap the bar under the felt to set it going again.
