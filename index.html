@@ -3336,7 +3336,7 @@ function botDecide(b, n, pot){
   if(!botHandsOn(pot)) return false;           // nobody to leave it to, so banking costs nothing
   if(n > b.sits) return true;                  // more dice than it will sit on: stand up, throw them
   // the one handful it will sit on, it sits on for a small pot and the toss of a coin
-  if(n === b.sits && b.sitUnder) return pot >= b.sitUnder || Math.random() < b.sitOdds;
+  if(n === b.sits && b.sitUnder) return pot >= b.sitUnder || Math.random() >= b.sitOdds;
   return botCost(n, pot, b) < GIVEAWAY * botGift(n, pot, b);
 }
 
@@ -3355,7 +3355,9 @@ function botBrain(){
   if(!b || !b.random) return b;
   const turn = G.players[G.cur].turns.length;
   if(!botMood || botMood.seat !== G.cur || botMood.turn !== turn)
-    botMood = Object.assign({seat:G.cur, turn}, botMoodFor());
+    // the mood is a temperament, not a whole player: sits and onBoard are table manners and
+    // they belong to the Screwball whatever mood it's in, so its own profile goes underneath
+    botMood = Object.assign({seat:G.cur, turn}, b, botMoodFor());
   return botMood;
 }
 // undo, a new game or quitting all land here: anything the bot had scheduled gives up quietly
