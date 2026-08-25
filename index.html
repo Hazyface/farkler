@@ -3266,17 +3266,23 @@ function botHolds(n, pot, b){
    much of your six you never rolled. This is what that present is worth to them — in exactly
    the terms they'll use to decide whether to take it — and nothing at all when there's no ride
    to be had: rule off, someone still short of the board, or the game ending on this bank. */
+// Banking in the last round takes the lead back off whoever called it, and that starts the
+// round over with a new caller — so the game only ends on this bank if the pot isn't enough.
+function botTakesLead(pot){
+  const c = G.lastCaller;
+  return c !== null && G.cur !== c && total(G.players[G.cur]) + pot > total(G.players[c]);
+}
 // is there anybody to leave it to at all? Rule off, somebody still short of the board, or this
 // bank ending the game — in any of those the dice go back in the cup and nobody sees them.
-function botHandsOn(){
+function botHandsOn(pot){
   if(!G.letRide) return false;
   const next = (G.cur + 1) % G.players.length;
-  if(G.lastCaller !== null && next === G.lastCaller) return false;
+  if(G.lastCaller !== null && next === G.lastCaller && !botTakesLead(pot)) return false;
   if(G.minOnBoard && G.players.some((p,i) => i !== G.cur && !p.turns.some(v => v > 0))) return false;
   return true;
 }
 function botGift(n, pot, b){
-  if(!botHandsOn()) return 0;
+  if(!botHandsOn(pot)) return 0;
   const edge = botHolds(n, pot, b) - botHolds(6, 0, b);
   return edge > 0 ? edge : 0;
 }
@@ -3327,7 +3333,7 @@ function botDecide(b, n, pot){
   // throw them. A bot that wants an edge before it risks anything wants one here too, which is
   // what keeps the 🐢 slower to burn a handful down than the 😈.
   if(roll) return true;
-  if(!botHandsOn()) return false;              // nobody to leave it to, so banking costs nothing
+  if(!botHandsOn(pot)) return false;           // nobody to leave it to, so banking costs nothing
   if(n > b.sits) return true;                  // more dice than it will sit on: stand up, throw them
   // the one handful it will sit on, it sits on for a small pot and the toss of a coin
   if(n === b.sits && b.sitUnder) return pot >= b.sitUnder || Math.random() < b.sitOdds;
