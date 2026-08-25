@@ -1019,7 +1019,7 @@
         <li>Three dice score seven throws in ten, so <b>nobody hands over three or more</b> — they
             stand up and throw them, whatever the pot, target crossed or not. What you get offered
             comes with one or two dice behind it, not a handful.</li>
-        <li>Except the 🐢, which will sit on three if the pot is under 700 — and even then only
+        <li>Except the 🐢, which will sit on three if the pot is under 1,200 — and even then only
             half the time. It quits while it's ahead; that's the whole of it.</li>
         <li>The 😈 dithers on the small ones: under 500 with a die or two left it tosses a coin
             to throw again, and again on what that leaves. Over 500 it banks like everyone else.</li>
@@ -1594,8 +1594,8 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
 // build step has nothing else to stamp it.
-const VERSION = '1.6.1';
-const BUILT   = '2026-08-22 15:15';
+const VERSION = '1.6.2';
+const BUILT   = '2026-08-25 09:57';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3130,7 +3130,7 @@ window.addEventListener('resize', ()=>{
              it's holding at least this many dice. Six means only a clean sweep keeps it up. */
 const BOTS = {
   careful:   {name:'Careful',  icon:'🐢', tag:'quits while ahead',
-              bias:1.24, nerve:0,   tempt:1,    sits:3, sitUnder:700, sitOdds:.5, onBoard:6},
+              bias:1.24, nerve:0,   tempt:1,    sits:3, sitUnder:1200, sitOdds:.5, onBoard:6},
   steady:    {name:'Steady',   icon:'🤖', tag:'plays the odds',
               bias:1.02, nerve:.06, tempt:.85,  sits:2, onBoard:6},
   gambler:   {name:'Gambler',  icon:'😈', tag:'rolls on two',

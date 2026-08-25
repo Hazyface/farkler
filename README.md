@@ -149,7 +149,7 @@ the pot:
 | 🐢 **Careful** | Good picks, then quits while it's ahead. Stops on three dice. |
 | 🤖 **Steady** | Plays it straight — rolls whenever rolling is worth more than banking. |
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
-| 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged. |
+| 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged — but its table manners hold whatever mood it is in. |
 
 Over a few hundred thousand simulated turns, Careful averages 567 a turn, Steady 574 and the
 Gambler 561, with the Gambler farkling 36% of the time against the others' 21–25%. That's a turn
@@ -176,15 +176,18 @@ Which comes out as:
 
 - **Nobody hands over three dice or more.** They stand up and throw them, whatever the pot and
   whether or not the target is already crossed.
-- **Except the 🐢**, which will sit on three — but only under 700, and even then only on the toss
-  of a coin. It quits while it's ahead; that is the whole of its character.
+- **Except the 🐢**, which will sit on three — but only under 1,200, and even then only on the
+  toss of a coin. That number is where its own sums stop preferring the throw, so the one handful
+  it sits on, it sits on exactly while sitting is the cheaper side. It quits while it's ahead;
+  that is the whole of its character.
 - **The 😈 dithers on the small ones.** Under 500 with one or two dice it tosses a coin to throw
   again, and another on whatever that leaves, chasing the clean sweep back to a fresh six. Over
   500 it stops and banks like everyone else — the surprise being that a gambler is the one bot
   that will pass up a two-dice throw on a decent pot.
 - **Nothing applies when there's nobody to hand to.** Rule off, someone still short of the board,
   or a bank that ends the game — in any of those the dice go back in the cup unseen, and the
-  arithmetic decides on its own.
+  arithmetic decides on its own. Banking past the leader on the last lap is not one of them: that
+  takes the lead back and starts the lap again, so the player who has to beat it gets the dice.
 
 The opening is its own phase, and the phase lasts as long as *anybody* is still short of the
 board — not just the bot having the turn. Nobody can ride until everyone is on, so until then
