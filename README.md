@@ -151,10 +151,11 @@ the pot:
 | 😈 **Gambler** | Leaves dice out for the chance of a big throw, rolls on two, sometimes goes for it on one. Farkles nearly twice as often. |
 | 🤪 **Screwball** | Draws a new temperament every turn and announces it. Occasionally more cautious than Careful; occasionally unhinged — but its table manners hold whatever mood it is in. |
 
-Over a few hundred thousand simulated turns, Careful averages 567 a turn, Steady 574 and the
-Gambler 561, with the Gambler farkling 36% of the time against the others' 21–25%. That's a turn
-opened with a fresh six and nothing inherited; in a game with riding on, picking up somebody
-else's pot lifts all of them by about ninety.
+Over a million simulated turns apiece, Careful averages 571 a turn, Steady 573, the Gambler 559
+and the Screwball 554, with the Gambler farkling 37% of the time against Careful's 20% and
+Steady's 25%. That's a turn opened with a fresh six and nothing inherited. Somebody else's pot is
+worth far more than a fresh six: a ridden turn averages about 890, and around one turn in six is
+a ride, which lifts everyone's per-turn average by about fifty.
 
 They know the rules they're playing under, too: one chasing a leader on the last lap won't bank
 anything short of the lead, and one that can cross the target takes it.
@@ -202,11 +203,12 @@ than banking, and what it makes of a close call is its bias. The temperament rul
 up when the sheet has said *bank* — and for the 😈's coin toss, which replaces the sheet outright,
 because the sheet would throw every one of those and the point is that it hesitates.
 
-Head to head over 30,000 games apiece with riding on, it is a much closer field than it was:
-Careful, Steady and the Gambler are level with each other inside a point, and only the Screwball
-trails, at 53–47 to Steady. Turn averages are 567, 574 and 561, farkling 21%, 25% and 36%.
-Against the older, cannier setting each of them gives up something under a point. The character
-is worth more than the point.
+Head to head over 200,000 games a pairing with riding on, the top three are inseparable: Careful
+and Steady split it 49.8–50.2, Careful takes the Gambler 50.7–49.3 and Steady takes it 50.6–49.4.
+The Screwball trails the field by two to three points — 52.4–47.6 to Careful, 52.5–47.5 to Steady,
+51.7–48.3 to the Gambler — and that is a point and a half better than it managed while it was
+losing its table manners with every change of mood. Against the older, cannier setting each of
+them still gives up something under a point. The character is worth more than the point.
 
 Undo during a bot's turn parks it rather than letting it instantly replay the move you just took
 back — tap the bar under the felt to set it going again.
