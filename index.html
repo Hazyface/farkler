@@ -2612,6 +2612,19 @@ function vAbort(){
   if(V.raf){ cancelAnimationFrame(V.raf); V.raf = 0; }
   const fly = document.querySelector('#flylayer'); if(fly) fly.innerHTML = '';
 }
+/* The board bolts itself shut while something is in the air, and every unbolting sits at the
+   far end of a timer. A timer that bailed because the state had moved on used to just
+   return — leaving the bolt across. And a bolted board is a dead one: vSync stops
+   redrawing it, the roll button and the dice stop answering, and botTurn gives up on its
+   first line, so the Rollerbot goes parked and stays parked however many times you tap it.
+   That is the stuck game. Nothing returns bare from behind the bolt any more; it comes
+   through here, which puts the board back the way the saved state says it should look. */
+function vGiveUp(why){
+  vLog('let the board go: ' + why);
+  V.lock = false;
+  if(V.raf){ cancelAnimationFrame(V.raf); V.raf = 0; }
+  vSync();
+}
 const easy = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
 
 // a Rollerbot can't pick up the dice on your table, so it always rolls on the felt —
@@ -2786,7 +2799,7 @@ function vChrome(){
     if(botHold){
       read.innerHTML = `⏸ <b>${esc(me.name)}</b> is parked — tap to let it play`;
       read.classList.add('tapme');
-      read.onclick = () => { S.tap(); botHold = false; botKick(120); };
+      read.onclick = () => { S.tap(); vLog('unparked by hand'); botHold = false; botKick(120); };
     } else if(BOT.say) read.innerHTML = BOT.say;
     roll.disabled = bank.disabled = true;
     $('#bankSub').textContent = G.pot ? `${fmt(total(me))} → ${fmt(total(me) + G.pot)}` : '';
@@ -2907,7 +2920,8 @@ function vRoll(){
   shakeCup();
 
   setTimeout(()=>{
-    if(gen !== V.gen || !vOn()) return;           // undone, quit, or a new game started
+    if(gen !== V.gen) return;                     // undone, quit, or a new game started
+    if(!vOn()){ vGiveUp('turn moved on mid-shake'); return; }
     cup.classList.add('hide');
     const layer = $('#dielayer');
     layer.innerHTML = '';
@@ -3067,7 +3081,12 @@ function vSettled(){
     read.classList.remove('tapme','bad'); read.onclick = null;
     read.innerHTML = curBot() ? `<b>${esc(G.players[G.cur].name)}</b> is looking…` : '…';
     // a bot doesn't need as long to be sure, but it still gets a beat to look
-    setTimeout(()=>{ if(gen === V.gen && vOn()) vFarkle(); }, (curBot() ? 260 : 500) * vals.length);
+    setTimeout(()=>{
+      if(gen !== V.gen) return;                   // vAbort has already cleared the board
+      // up to three seconds of looking at a farkle, and the turn can end under it
+      if(!vOn()){ vGiveUp('turn moved on mid-farkle'); return; }
+      vFarkle();
+    }, (curBot() ? 260 : 500) * vals.length);
     return;
   }
   if(best.pts >= 1000) sparkle(.12);
@@ -3145,6 +3164,60 @@ window.addEventListener('resize', ()=>{
     else if(vOn()) vCup();                  // mid-throw: the cup still has to fit the new felt
     if(G && G.over) drawChart();            // the graph is measured in pixels too
   }, 140);
+});
+
+/* ---------- the watchdog ----------
+   iOS stops handing out animation frames to a page it has put to sleep, and a page that has
+   come back from a memory-pressure white-out never gets the frame it was waiting for. The
+   throw then hangs in the air forever with the board bolted behind it. Rather than trust
+   every path to unbolt itself, this watches the board: if something has been in the air far
+   longer than the longest throw and farkle-stare can take, it finishes the throw by hand and
+   sets the Rollerbot going again. A hiccup instead of a game you have to abandon. */
+let vStuckAt = 0, vStuckTick = -1;
+function vWatchdog(){
+  // Not while the app is off screen: frames are *supposed* to stop there, nobody is waiting
+  // on the board, and landing a throw nobody saw would be its own bug. Coming back resets
+  // the count and asks for a fresh frame, so the clock starts again from the moment you look.
+  if(document.hidden){ vStuckAt = 0; vStuckTick = -1; return; }
+  if(!G || G.over || !vOn() || (!V.lock && !V.raf)){ vStuckAt = 0; vStuckTick = -1; return; }
+  const now = performance.now();
+  if(V.tick !== vStuckTick){ vStuckTick = V.tick; vStuckAt = now; return; }  // still tumbling
+  if(!vStuckAt){ vStuckAt = now; return; }
+  if(now - vStuckAt < 8000) return;                    // a six-dice farkle stare is 4.4s
+  vStuckAt = 0;
+  vLog('watchdog: board stuck ' + (V.raf ? 'mid-throw' : 'locked') + ' — recovering');
+  if(V.raf){                                           // frames stopped coming: land them
+    cancelAnimationFrame(V.raf); V.raf = 0; V.lock = false;
+    // a throw that never travelled would otherwise settle in a heap at the mouth of the
+    // cup, which reads as the glitch it is. Put them out on the felt like the
+    // no-animation path does, so a rescued roll just looks like a quick one.
+    const bx = vBox(), pd = vSize()*.62;
+    V.dice.forEach(d=>{
+      if(!d.moving) return;
+      d.vx = d.vy = d.vrot = 0; d.rot = R(0,360);
+      d.x = pd + Math.random()*Math.max(1, bx.w-2*pd);
+      d.y = pd + Math.random()*Math.max(1, bx.h-2*pd);
+      vRest(d);
+    });
+    vSettled();
+  } else { V.lock = false; vSync(); }
+  // …and whoever was waiting on it. Not while last call is up: that is a real park.
+  if(curBot() && !$('#callOvl').classList.contains('on')){
+    botHold = false;
+    // say so, or the bar keeps showing the parked line it was left on and the recovery
+    // looks exactly like the freeze it just undid
+    botSay(`<b>${botName()}</b> picks the dice back up\u2026`);
+    botKick(400);
+  }
+}
+setInterval(vWatchdog, 1000);
+/* Coming back to the app is the moment a dropped frame shows up, so ask for another one
+   rather than sitting out the watchdog's eight seconds. */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){ vStuckAt = 0; vStuckTick = -1; return; }
+  vLog('back on screen' + (V.raf ? ' mid-throw' : V.lock ? ' with the board locked' : ''));
+  vStuckAt = 0; vStuckTick = -1;
+  if(V.raf && vOn()){ cancelAnimationFrame(V.raf); V.raf = requestAnimationFrame(vStep); }
 });
 
 /* =======================================================================
@@ -3726,7 +3799,10 @@ $('#againSame').onclick = $('#newGameBtn').onclick;
 $('#againNew').onclick  = $('#quitBtn').onclick;
 // tapping the backdrop closes a sheet — except the ride offer, which wants an actual answer
 document.querySelectorAll('.ovl').forEach(o => {
-  if(o.id === 'rideOvl') return;
+  // The ride offer wants an actual answer. So does last call, for a different reason: the
+  // bot is parked while it's up, and the button under it is the only thing that unparks it.
+  // Closing it round the side left the Rollerbot parked for the rest of the game.
+  if(o.id === 'rideOvl' || o.id === 'callOvl') return;
   o.onclick = e => { if(e.target === o) o.classList.remove('on'); };
 });
 
