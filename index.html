@@ -524,6 +524,9 @@
   .diag b{color:var(--text);font-weight:600}
   .diag .ok{color:var(--green)}
   .diag .warn{color:#ff9d6e}
+  .diag .vlog{margin:4px 0 0;padding:6px 8px;border-radius:8px;background:rgba(0,0,0,.35);
+              font:11px/1.45 ui-monospace,Menlo,monospace;color:var(--dim);
+              white-space:pre-wrap;max-height:150px;overflow:auto}
   .confetti{position:fixed;top:-20px;font-size:22px;z-index:59;pointer-events:none;animation:fall linear forwards}
   @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
 
@@ -1148,6 +1151,30 @@ const LS = {
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
+
+/* ---------- the black box ----------
+   The board can wedge on a phone in ways that leave nothing behind to look at: iOS throws
+   the page away under memory pressure and it comes back as a white flash with fresh
+   variables, so whatever went wrong went with it. This is forty lines of what happened,
+   kept in storage so it outlives the reload, and read back out under the menu. */
+const LOGKEY = "farkler.log";
+let VLOG = [];
+try{ VLOG = JSON.parse(LS.get(LOGKEY)) || []; }catch(e){ VLOG = []; }
+function vLog(msg){
+  const t = new Date();
+  VLOG.push(t.toTimeString().slice(0,8) + "  " + msg);
+  if(VLOG.length > 40) VLOG.splice(0, VLOG.length - 40);
+  LS.set(LOGKEY, JSON.stringify(VLOG));
+}
+window.addEventListener('error', e =>
+  vLog('\u26a0 ' + (e.message || 'error') + '  ' + (e.filename||'').split('/').pop() + ':' + (e.lineno||'?')));
+window.addEventListener('unhandledrejection', e =>
+  vLog('\u26a0 unhandled: ' + ((e.reason && e.reason.message) || e.reason || '?')));
+/* The one line that says which kind of restart it was. A page that is closed or navigated
+   away from says goodbye first; a page iOS drops on its own to get its memory back does
+   not. So a "started" with no "put away" above it is the white flash — the app was killed
+   under you, not reloaded by you. */
+window.addEventListener('pagehide', e => vLog('put away' + (e.persisted ? ' (kept warm)' : '')));
 
 const R  = (a,b) => a + Math.random()*(b-a);
 const RI = (a,b) => Math.floor(R(a,b+1));
@@ -3635,7 +3662,22 @@ function refreshDiag(){
     `<div><b>Address</b> ${esc(location.href)}</div>` +
     `<div><b>Launched</b> ${standalone ? 'from the Home Screen' : 'in the browser'}</div>` +
     `<div><b>Offline copy</b> ${sw}</div>` +
-    (secure ? '' : `<div class="warn">Open this as <b>http://localhost:PORT/</b> or over https — an IP address can't save an offline copy.</div>`);
+    (secure ? '' : `<div class="warn">Open this as <b>http://localhost:PORT/</b> or over https — an IP address can't save an offline copy.</div>`) +
+    `<div><b>Board</b> ${boardState()}</div>` +
+    `<div style="margin-top:8px"><b>What happened</b></div>` +
+    `<pre class="vlog">${esc(VLOG.slice(-14).join('\n')) || 'nothing worth writing down yet'}</pre>`;
+}
+// enough of the board's innards to say why it is not moving, in words rather than flags
+function boardState(){
+  if(!G) return 'no game';
+  const bits = [];
+  if(V.raf) bits.push('throw in the air');
+  if(V.lock) bits.push('locked');
+  if(botHold) bits.push('robot parked');
+  if(G.over) bits.push('game over');
+  bits.push(V.dice.length + ' on the felt');
+  bits.push(curBot() ? 'robot\u2019s turn' : 'your turn');
+  return esc(bits.join(' \u00b7 '));
 }
 // scrub every worker and cache for this address, then reload clean
 $('#swReset').onclick = async () => {
@@ -3719,6 +3761,7 @@ buildScoreRef();
 lineup = roster.slice(-2).map(r=>({name:r.name, emoji:r.emoji, color:r.color}));
 while(lineup.length < 2) lineup.push(newPlayer());
 renderPlayers();
+vLog('started \u2014 ' + VERSION);
 if(!load()) show('setup');
 document.addEventListener('pointerdown', function unlock(){ ctx(); }, {once:true});
 
