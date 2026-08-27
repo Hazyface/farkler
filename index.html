@@ -1621,8 +1621,8 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
 // build step has nothing else to stamp it.
-const VERSION = '1.6.2';
-const BUILT   = '2026-08-25 09:57';
+const VERSION = '1.6.3';
+const BUILT   = '2026-08-26 09:40';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -2716,7 +2716,14 @@ function vClack(){
 function vNorm(d){
   const b = vBox(), pad = vSize()*.62, w = Math.max(1, b.w-2*pad), h = Math.max(1, b.h-2*pad);
   const cl = x => Math.max(0, Math.min(1, x));
-  return [cl((d.x-pad)/w), cl((d.y-pad)/h), d.rot % 360];
+  /* Which way up it is has to travel with it. A face can be showing in more than one pose:
+     a 2 and a 5 each have four, a quarter turn apart. Rebuilding the board from x, y and
+     spin alone threw that away and snapped every die back to the first pose in the table —
+     which nobody sees on a 5, because five pips look the same every quarter turn, but is
+     plain as day on a 2, whose pips lie on a diagonal. That's the 2 that turns under you
+     when you set a die aside. It is at rest here, so the pose is a whole quarter turn. */
+  const q = a => ((Math.round(a/90)*90) % 360 + 360) % 360;
+  return [cl((d.x-pad)/w), cl((d.y-pad)/h), d.rot % 360, q(d.rx), q(d.ry)];
 }
 function vDenorm(p){
   const b = vBox(), pad = vSize()*.62;
@@ -2752,7 +2759,11 @@ function vSync(){
     const d = {v, sel:!!(vr.sel && vr.sel[i]), rot:(vr.pos[i]||[0,0,0])[2]||0,
                x:p.x, y:p.y, vx:0, vy:0, vrot:0, moving:false,
                z:0, vz:0, rx:0, ry:0, wx:0, wy:0};
-    const pose = CUBE_POSE[v][0] || [0,0];        // already lying still, showing what it rolled
+    // the pose it actually landed in, if this state was saved with one — checked against
+    // the table, so a save from an older build still comes back showing the right face
+    const sp = vr.pos[i] || [], poses = CUBE_POSE[v] || [];
+    const kept = sp.length > 4 && poses.some(q => q[0] === sp[3] && q[1] === sp[4]);
+    const pose = kept ? [sp[3], sp[4]] : (poses[0] || [0,0]);
     d.rx = pose[0]; d.ry = pose[1];
     d.node = vNode();
     d.node.classList.toggle('sel', d.sel);
