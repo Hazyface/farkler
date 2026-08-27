@@ -1603,6 +1603,11 @@ let roster = [];       // everyone we've ever met: {name, emoji, color}
 let houseRules = [];   // named custom scores: {name, pts}
 let past = [], future = [];   // every button press, backwards and forwards
 
+/* When the app rolls the dice, history is a cheat: step back past a roll and you can roll
+   again until you like the answer. So the felt board keeps no history at all — undo exists
+   only where the dice are on the table and the app is just keeping score. */
+const noHistory = () => !!(G && G.virtual);
+
 const $ = s => document.querySelector(s);
 const el = (t,c,h) => { const e=document.createElement(t); if(c) e.className=c; if(h!=null) e.innerHTML=h; return e; };
 const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1872,6 +1877,7 @@ function everyoneOnBoard(){
 }
 /* every action that changes the game records a step first, so undo walks back one press at a time */
 function step(){
+  if(noHistory()) return;
   past.push(JSON.stringify(G));
   if(past.length > 120) past.shift();
   future.length = 0;                       // a fresh move abandons the redo branch
@@ -1887,8 +1893,11 @@ function applyState(json){
   paintSteps();
 }
 function paintSteps(){
-  $('#undoBtn').disabled = !past.length;
-  $('#redoBtn').disabled = !future.length;
+  const off = noHistory();
+  $('#undoBtn').style.display = off ? 'none' : '';
+  $('#redoBtn').style.display = off ? 'none' : '';
+  $('#undoBtn').disabled = off || !past.length;
+  $('#redoBtn').disabled = off || !future.length;
 }
 
 /* ---------- scoring pad ---------- */
@@ -2129,7 +2138,8 @@ function render(){
       `<span class="tf">${iconHTML(x.icon || x.face)}</span>` +
       `<span class="tp${x.pts<0?' neg':''}">${x.pts>0?'+':''}${x.pts}</span>`);
     // on the felt board the tally is a record, not an input — pulling a combo back out would
-    // hand the dice it used back to the table. Undo is the way out of a misclick there.
+    // hand the dice it used back to the table. And there's no undo there either, so a misclick
+    // on the felt costs you the combo: the price of dice nobody can re-roll.
     if(vOn()) tag.title = x.lab;
     else {
       tag.title = x.lab + ' — tap to remove';
@@ -2154,7 +2164,7 @@ function render(){
   // your table at all — the felt board re-decides this for itself in vChrome
   $('#bankBtn').disabled = !!curBot() || !G.pot || shortOfBoard(G.pot) || ridingUnearned();
   paintSteps();
-  vSync();          // the felt board follows the state, so undo and redo control it too
+  vSync();          // the felt board follows the state, however the state got there
   paintDefault();   // …and so does whatever Enter would press
   if(G.over) drawChart();
 }
@@ -2450,6 +2460,7 @@ function toast(msg){
 /* stepping back into a Rollerbot's turn parks it: it would otherwise replay the move you
    just took back, faster than you can press undo again. Tap the felt to set it going. */
 $('#undoBtn').onclick = () => {
+  if(noHistory()){ S.nope(); return; }
   if(!past.length){ S.nope(); return; }
   future.push(JSON.stringify(G));
   botHold = true;
@@ -2457,6 +2468,7 @@ $('#undoBtn').onclick = () => {
   S.undo();
 };
 $('#redoBtn').onclick = () => {
+  if(noHistory()){ S.nope(); return; }
   if(!future.length){ S.nope(); return; }
   past.push(JSON.stringify(G));
   botHold = true;
