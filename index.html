@@ -684,6 +684,8 @@
   .botbtn.on{opacity:1;filter:none;background:linear-gradient(#3d4f6b,#27354a);
              box-shadow:inset 0 0 0 1px rgba(140,190,255,.5)}
   .botbtn:active{transform:translateY(2px)}
+  .botbtn:disabled{opacity:.16}
+  .btn.ghost:disabled{opacity:.4;box-shadow:0 1px 0 var(--drop);transform:translateY(2px)}
   /* the level picker, folded out under the row it belongs to */
   .botrow{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin:-4px 0 0 54px}
   @media (min-width:620px){ .botrow{grid-template-columns:repeat(4,1fr)} }
@@ -764,7 +766,7 @@
       <button class="btn ghost wide" id="addPlayer" style="margin-top:0">➕ Add player</button>
       <button class="btn ghost wide" id="addBot" style="margin-top:0">🤖 Add a Rollerbot</button>
     </div>
-    <div class="hint">Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.</div>
+    <div class="hint" id="botHint">Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.</div>
 
     <div id="benchWrap" style="display:none">
       <h3>🪑 On the bench — tap to add back</h3>
@@ -1621,7 +1623,7 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
 // build step has nothing else to stamp it.
-const VERSION = '1.6.3';
+const VERSION = '1.6.4';
 const BUILT   = '2026-08-26 09:40';
 
 let G = null;          // live game
@@ -1708,8 +1710,14 @@ function renderPlayers(){
 
     // hand the seat to the app, or take it back
     const bb = el('button','botbtn' + (p.bot ? ' on' : ''), '🤖');
-    bb.title = p.bot ? 'Let a person play this seat' : 'Let a Rollerbot play this seat';
-    bb.onclick = () => { S.tap(); setBot(p, p.bot ? null : 'steady'); renderPlayers(); };
+    bb.disabled = !vdice;
+    bb.title = !vdice ? 'Rollerbots need the dice in the app'
+             : p.bot ? 'Let a person play this seat'
+                     : 'Let a Rollerbot play this seat';
+    bb.onclick = () => {
+      if(!vdice){ S.nope(); return; }
+      S.tap(); setBot(p, p.bot ? null : 'steady'); renderPlayers();
+    };
     row.append(bb);
 
     // turn order
@@ -1800,7 +1808,7 @@ $('#addPlayer').onclick = () => {
   inputs[inputs.length-1].focus(); inputs[inputs.length-1].select();
 };
 $('#addBot').onclick = () => {
-  if(lineup.length >= 8){ S.nope(); return; }
+  if(lineup.length >= 8 || !vdice){ S.nope(); return; }
   S.tap();
   const p = newPlayer();
   lineup.push(p);
@@ -1849,11 +1857,23 @@ function paintMode(){
     $('#'+id).classList.toggle('sel', on);
     $('#'+id).setAttribute('aria-checked', on);
   });
+  // a Rollerbot can only roll the app's dice, so it's only on offer when those are the ones in play
+  $('#addBot').disabled = !vdice;
+  $('#botHint').textContent = vdice
+    ? 'Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.'
+    : 'Rollerbots roll the app\u2019s dice, so they sit this one out \u2014 switch to IN THE APP up top to play one.';
 }
 function setMode(on){
   if(on === vdice) return;                 // tapping the one you're already on is a no-op
   vdice = on; LS.set(VDICE, on ? '1' : '0');
-  S.tap(); paintMode();
+  // nobody can roll for a robot on your table, so moving the dice there empties its seat
+  if(!on) lineup.forEach(p => { if(p.bot) setBot(p, null); });
+  S.tap(); paintMode(); renderPlayers();
+}
+/* The setup screen shows the mode the game in progress is actually being played in — the
+   picker is one tap from the board and a parked game can't change its dice mid-hand. */
+function showMode(on){
+  vdice = !!on; LS.set(VDICE, vdice ? '1' : '0'); paintMode();
 }
 $('#modeReal').onclick = () => setMode(false);
 $('#modeApp').onclick  = () => setMode(true);
@@ -1872,7 +1892,12 @@ $('#start').onclick = () => {
 /* ---------- game lifecycle ---------- */
 function startGame(list, opts){
   G = {
-    players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji, bot:p.bot||null, turns:[], rode:[]})),
+    // A Rollerbot has no hands. It can only play where the dice belong to the app, so a
+    // seat handed to one can't come along into a game rolled on the table — the setup
+    // screen won't offer it, and a lineup carried over from an app game drops it here.
+    // Every game is born in this function, so this is the one place the rule has to hold.
+    players: list.map(p => ({name:p.name, color:p.color, emoji:p.emoji,
+                             bot:(opts.virtual && p.bot) || null, turns:[], rode:[]})),
     target: opts.target, minOnBoard: opts.minOnBoard, letRide: opts.letRide,
     virtual: !!opts.virtual,
     vr: {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]},   // what's lying on the felt
@@ -2627,9 +2652,13 @@ function vGiveUp(why){
 }
 const easy = !!(window.matchMedia && matchMedia('(prefers-reduced-motion:reduce)').matches);
 
-// a Rollerbot can't pick up the dice on your table, so it always rolls on the felt —
-// even in a game where the people are using real ones
-const vOn   = () => !!(G && (G.virtual || (!G.over && !!G.players[G.cur].bot)));
+/* The felt used to come out for a Rollerbot's turn whatever kind of game it was, on the
+   grounds that a robot can't pick up the dice on your table. But that made the screen
+   change surfaces halfway round the lineup — one seat tapping in what it rolled, the next
+   shaking a cup — and where the dice are is a fact about the game, not about whose turn it
+   is. A Rollerbot is kept out of a real-dice game instead, so this only has one thing to
+   ask now. */
+const vOn   = () => !!(G && G.virtual);
 const vBox  = () => { const s = $('#surface'); return {w:s.clientWidth||320, h:s.clientHeight||220}; };
 const vSize = () => { const b = vBox(); return Math.max(28, Math.min(70, Math.min(b.w*.155, b.h*.235))); };
 /* The cup is measured off the felt the same way the dice are, against both sides of it. On
@@ -3782,8 +3811,12 @@ $('#swReset').onclick = async () => {
 $('#resumeBtn').onclick = () => { S.tap(); $('#menuOvl').classList.remove('on'); };
 $('#newGameBtn').onclick = () => {
   $('#menuOvl').classList.remove('on'); $('#winOvl').classList.remove('on');
-  startGame(G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color, bot:p.bot||null})),
-            {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide, virtual:G.virtual});
+  // The same crew again, at the dice the picker is showing. If that's the table now, a seat
+  // a Rollerbot was holding goes back to a person properly — name and face and all, not just
+  // a robot left sitting there with nobody driving it.
+  lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color, bot:p.bot||null}));
+  if(!vdice) lineup.forEach(p => { if(p.bot) setBot(p, null); });
+  startGame(lineup, {target:G.target, minOnBoard:G.minOnBoard, letRide:G.letRide, virtual:vdice});
 };
 /* Settings & players, from the gear or from the menu. A game in progress is parked, not
    thrown away — the gear is one tap from the board and nobody taps it meaning "bin this
@@ -3794,6 +3827,7 @@ function openSetup(){
   if(G){
     remember(G.players);
     lineup = G.players.map(p=>({name:p.name, emoji:p.emoji, color:p.color, bot:p.bot||null}));
+    showMode(G.virtual);                // the picker says where this game's dice actually are
     botHold = true; botStop();          // a robot mid-think doesn't play on while you're in here
     if(G.over){ vAbort(); LS.del(SAVE); G = null; }   // a finished game has nothing to go back to
   }
@@ -3828,6 +3862,9 @@ function load(){
     if(g.letRide === undefined) g.letRide = true;
     if(g.table === undefined) g.table = null;
     if(g.virtual === undefined) g.virtual = false;
+    // saved before Rollerbots were kept out of real-dice games: hand those seats to people
+    // rather than resume a game whose felt board no longer comes out for them
+    if(!g.virtual) g.players.forEach(p => { p.bot = null; });
     if(!g.vr) g.vr = {vals:[], sel:[], pos:[], best:[], bestPts:0, live:[]};
     G = g; past = []; future = [];
     show('game'); buildPad(); render();
