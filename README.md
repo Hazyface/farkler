@@ -259,6 +259,7 @@ the turns scroll under it, the rolling player's column included.
 | `index.html` | The entire game — markup, styles, logic, dice physics, and synthesized sound |
 | `sw.js` | Service worker, for offline launches from the Home Screen |
 | `icon-180.png` | Home Screen icon |
+| `.githooks/pre-commit` | Stamps the build time into `index.html` |
 
 There is deliberately no web app manifest. On iOS a manifest's `start_url` overrides the page you
 were viewing when you tapped Add to Home Screen, which is an easy way to end up with an icon that
@@ -266,6 +267,17 @@ opens a URL nothing serves. Without one, iOS bookmarks exactly the page you were
 standalone/title/icon settings from the `apple-*` meta tags.
 
 ## Notes
+
+The ☰ menu's build stamp is written by `.githooks/pre-commit`, not by hand — there is no build
+step for a one-file app to have, so the commit is the build. Git doesn't clone hooks, so a fresh
+checkout has to be pointed at them once:
+
+```
+git config core.hooksPath .githooks
+```
+
+Without that the app still runs; it just keeps reporting whatever time it was last stamped on a
+machine that had the hook. `VERSION` is still moved by hand.
 
 Sound is synthesized with the Web Audio API — nothing is downloaded. It is not tasteful.
 There is a mute button.

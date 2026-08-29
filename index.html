@@ -1621,10 +1621,13 @@ const PICKABLE = [
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
-// VERSION is the release; BUILT is stamped by hand at the same time, because a file with no
-// build step has nothing else to stamp it.
+// VERSION is the release, and it's still moved by hand. BUILT is not: it used to be stamped
+// by hand too, on the honour system, right next to a number that gets bumped — which is how
+// 1.6.4 went out reporting a build date two days older than itself. The commit is the build
+// here, there being no build step for a single file to have, so .githooks/pre-commit writes
+// the line below every time index.html is committed. Don't edit it; it won't survive.
 const VERSION = '1.6.4';
-const BUILT   = '2026-08-29 10:58';
+const BUILT   = '26:08:29-11:02:58';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}

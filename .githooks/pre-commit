@@ -1,0 +1,31 @@
+#!/bin/sh
+# The menu shows a build stamp, and a stamp kept by hand is a stamp that goes stale: the
+# release it sits next to gets bumped, this doesn't, and the app confidently reports a
+# build date from a week ago. There's no build step to hang it off — the whole app is one
+# file — so the commit is the build, and this stamps it.
+#
+# It rewrites the staged copy rather than running `git add` over the file, so committing
+# part of your changes still commits only that part. The working copy gets the same line
+# so the two don't sit there disagreeing.
+#
+# Installed by pointing git at this directory:  git config core.hooksPath .githooks
+
+git diff --cached --quiet -- index.html && exit 0   # index.html isn't in this commit
+
+STAMP=$(date '+%y:%m:%d-%H:%M:%S')
+LINE="const BUILT   = '$STAMP';"
+TMP=$(mktemp)
+
+# the staged copy — the bytes that are actually about to be committed
+git cat-file blob ":index.html" | sed "s|^const BUILT .*|$LINE|" > "$TMP" || exit 1
+if ! grep -q "^const BUILT " "$TMP"; then
+  echo "pre-commit: no BUILT line in index.html — stamp not applied" >&2
+  rm -f "$TMP"; exit 1
+fi
+git update-index --cacheinfo "100644,$(git hash-object -w "$TMP"),index.html" || exit 1
+rm -f "$TMP"
+
+# and the working copy, so it doesn't drift from what just went in
+[ -f index.html ] && sed -i '' "s|^const BUILT .*|$LINE|" index.html
+
+echo "pre-commit: built $STAMP"
