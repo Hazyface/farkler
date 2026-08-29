@@ -899,14 +899,17 @@
           <path d="M17 104 Q55 116 93 104 L93 110 Q93 123 55 123 Q17 123 17 110 Z"
                 fill="rgba(0,0,0,.34)"/>
           <!-- Stitching: round under the lip, up the seam, round the base. A line running round
-               the cylinder is the rim's own ellipse further down, so it sags by exactly the
-               rim's ry — a quadratic reaches a quarter of the way to its control point, hence
-               the doubled drop. -->
+               the cylinder is the rim's own ellipse slid down the wall, so it wants the rim's
+               radii — flat across the near face and turning to vertical where it reaches the
+               silhouette. A quadratic sags the right amount but in the wrong shape: a parabola
+               is pointy in the middle and lazy at the ends, which reads as a bent line rather
+               than a hoop. The seam is the one line that really is straight, and it starts and
+               stops where the two hoops cross it, not at a flat height. -->
           <g fill="none" stroke="#c4ac7d" stroke-width="1.2" stroke-linecap="round"
              stroke-dasharray="2.6 3.4" opacity=".82">
-            <path d="M17 31 Q55 54 93 31"/>
-            <path d="M76 33 L76 108"/>
-            <path d="M17 99 Q55 122 93 99"/>
+            <path d="M17 31 A38 11.6 0 0 0 93 31"/>
+            <path d="M76 40.7 L76 108.7"/>
+            <path d="M17 99 A38 11.6 0 0 0 93 99"/>
           </g>
           <!-- the rolled lip, then the mouth cut out of it -->
           <ellipse cx="55" cy="20" rx="38" ry="11.6" fill="url(#cupLip)"/>
@@ -1627,7 +1630,7 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // here, there being no build step for a single file to have, so .githooks/pre-commit writes
 // the line below every time index.html is committed. Don't edit it; it won't survive.
 const VERSION = '1.6.4';
-const BUILT   = '26:08:29-11:02:58';
+const BUILT   = '26:08:29-16:51:42';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
