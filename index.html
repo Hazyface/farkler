@@ -696,6 +696,8 @@
   .lvl .ld{font-size:10px;font-weight:600;opacity:.75;letter-spacing:0}
   .lvl.on{background:linear-gradient(#3d4f6b,#27354a);color:#dceaff;border-color:rgba(140,190,255,.55)}
   .lvl:active{transform:translateY(1px)}
+  /* how fast they play, in the same buttons as how they play — three across at any width */
+  .spdrow{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:6px}
   /* a bot at the table: the felt says what it is doing, and nothing there is tappable */
   .botturn .vread{border-color:rgba(140,190,255,.55);color:#dceaff}
   .botturn .vread b{color:#8fd0ff}
@@ -743,6 +745,12 @@
     ↩️ Back to the game
   </button>
 
+  <!-- Up here rather than at the foot of the players card. Everything below it is a default
+       that is usually already right, so the common visit is: open the app, press this. Having
+       to scroll past three cards to start the game you were handed the app to start is the
+       kind of thing you only notice every single time. -->
+  <button class="btn go wide" id="start" style="max-width:560px">LET'S ROLL! 🎲</button>
+
   <div class="card">
     <h2>Where are the dice?</h2>
     <div class="modepick" role="radiogroup" aria-label="Where are the dice?">
@@ -767,6 +775,15 @@
       <button class="btn ghost wide" id="addBot" style="margin-top:0">🤖 Add a Rollerbot</button>
     </div>
     <div class="hint" id="botHint">Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.</div>
+
+    <!-- nothing to hurry along until there's a robot in the lineup, so it stays out of the
+         way until there is one -->
+    <div id="spdWrap" style="display:none">
+      <h3>⏱️ How fast do the Rollerbots play?</h3>
+      <div class="spdrow" id="spdRow"></div>
+      <div class="hint">Only the robots. A person's turn keeps its own pace, and the dice they
+        throw settle the way they always do.</div>
+    </div>
 
     <div id="benchWrap" style="display:none">
       <h3>🪑 On the bench — tap to add back</h3>
@@ -794,7 +811,6 @@
       somebody takes the lead, the lap starts over against them. Tap a player's icon to change it, or the arrows
       to change the turn order.</div>
 
-    <button class="btn go wide" id="start">LET'S ROLL! 🎲</button>
   </div>
 
   <div class="card">
@@ -1432,22 +1448,29 @@ function rideCheer(){
   [880,1175,1568].forEach((f,i)=> tone({freq:f, dur:.22, delay:i*.06, type:'triangle', vol:.13}));
 }
 /* ---- virtual dice: wood, felt and plastic ---- */
-// dice knocking around inside the cup before they come out
+// dice knocking around inside the cup before they come out. The cup is hard inside, so these
+// keep a little more edge than anything that lands on the baize — but only a little.
 function shakeCup(){
   noise(.34, .05, 0, 620, 'lowpass');
-  for(let i=0;i<8;i++) noise(.04, .03, Math.random()*.34, 900+Math.random()*1700, 'bandpass');
+  for(let i=0;i<8;i++) noise(.04, .035, Math.random()*.34, 450+Math.random()*650, 'bandpass');
 }
-// the spill: a scatter of clicks that thins out as they come to rest
+/* the spill. This was a scatter of bandpassed clicks between 1k and 3.4k, which is the sound
+   of dice landing on a table top — measured, 97% of it sat above 1kHz. Baize has no ring: it
+   swallows everything above a few hundred hertz and hands back a thud. So the impacts are
+   lowpassed down where a thump lives and laid over a low rumble instead, which puts about 90%
+   of the sound under 1kHz. Softer as well as duller — the felt is absorbing it, not reflecting
+   it — with a shade more gain to make up for the top end that is no longer there. */
 function clatter(n){
+  noise(.5, .10, 0, 300, 'lowpass');                       // the rumble the whole spill sits on
   for(let i=0;i<n*5;i++){
     const t = Math.pow(Math.random(), 1.6) * .8;
-    noise(.045, .035*(1-t*.7), t, 1000+Math.random()*2400, 'bandpass');
+    noise(.06, .06*(1-t*.7), t, 200+Math.random()*200, 'lowpass');
   }
-  tone({freq:R(58,86), dur:.28, type:'sine', vol:.035});
+  tone({freq:R(52,74), dur:.36, type:'sine', vol:.055});   // the table taking the weight
 }
-// one die hitting a rail or another die
+// one die hitting a rail or another die — muffled, the way it is across felt
 function clack(){
-  noise(.035, .0275, 0, 1100 + Math.random()*2100, 'bandpass');
+  noise(.05, .048, 0, 220 + Math.random()*200, 'lowpass');
 }
 
 /* ---- the crowd ---- */
@@ -1623,6 +1646,32 @@ const PICKABLE = [
   '🍕','🌮','🍩','🍑','🍺','🥃','🍄','🌵','🚀','⚡️','🔥','💩','🎃'
 ];
 const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', VDICE = 'farkler.vdice';
+
+/* ---- how fast the robots play ----
+   A Rollerbot's turn is nearly all pauses the app puts in on its behalf: a beat before it
+   shakes, a beat between dice as it picks them up, a beat to look at what it's done. Those
+   are there so you can follow it, and if you're watching four of them play each other out
+   you may not want to. So the pauses get divided, and at the far end the dice are stepped
+   through their tumble several frames at a time as well — otherwise the physics is the floor
+   on how fast a turn can go and nothing feels much quicker.
+
+   Nothing here touches a person's turn. A human's pauses are the human's, and the dice they
+   throw settle at the speed they always did — the multiplier is only ever read while a robot
+   is holding the cup. */
+const SPEEDS = {
+  normal:    {name:'Normal',    icon:'▶️',  tag:'watch it play',   pause:1,   phys:1},
+  faster:    {name:'Faster',    icon:'⏩',  tag:'gets on with it',  pause:.42, phys:2},
+  fasterest: {name:'Fasterest', icon:'⏭️',  tag:'blink and it\u2019s over', pause:.1,  phys:6}
+};
+const SPEEDK = 'farkler.botspeed';
+let botSpeed = SPEEDS[LS.get(SPEEDK)] ? LS.get(SPEEDK) : 'normal';
+const SPD = () => SPEEDS[botSpeed] || SPEEDS.normal;
+// a pause the app is taking on a robot's behalf, in whatever speed it's being played at.
+// Never all the way to nothing: a zero-length timeout still has to come back round the loop,
+// and the sequence reads better with a frame between its steps than with none.
+const bwait = ms => Math.max(16, Math.round(ms * SPD().pause));
+// the same, on a path a person also walks: their turn keeps every millisecond of it
+const bpause = ms => curBot() ? bwait(ms) : ms;
 // shown in the ☰ menu, so "did the update actually land?" has an answer you can read.
 // VERSION is the release, and it's still moved by hand. BUILT is not: it used to be stamped
 // by hand too, on the honour system, right next to a number that gets bumped — which is how
@@ -1630,7 +1679,7 @@ const SAVE = 'farkler.v1', ROSTER = 'farkler.roster', RULES = 'farkler.rules', V
 // here, there being no build step for a single file to have, so .githooks/pre-commit writes
 // the line below every time index.html is committed. Don't edit it; it won't survive.
 const VERSION = '1.6.4';
-const BUILT   = '26:08:29-16:51:42';
+const BUILT   = '26:09:02-21:03:43';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -1757,6 +1806,22 @@ function renderPlayers(){
     }
   });
   renderBench();
+  paintSpeed();
+}
+/* The speed picker only means anything with a robot in the lineup, and a robot can only be
+   there when the app owns the dice — so it appears with the first one and goes with the last. */
+function paintSpeed(){
+  const on = vdice && lineup.some(p => p.bot);
+  $('#spdWrap').style.display = on ? '' : 'none';
+  if(!on) return;
+  const row = $('#spdRow'); row.innerHTML = '';
+  Object.keys(SPEEDS).forEach(k=>{
+    const sp = SPEEDS[k];
+    const btn = el('button','lvl' + (botSpeed===k ? ' on' : ''),
+      `<span class="li">${sp.icon} ${sp.name}</span><span class="ld">${sp.tag}</span>`);
+    btn.onclick = () => { S.tap(); botSpeed = k; LS.set(SPEEDK, k); paintSpeed(); };
+    row.append(btn);
+  });
 }
 /* turning a seat over to the app: it takes a robot name and a face to match, and gives
    them back if a person wants the seat again */
@@ -1868,6 +1933,7 @@ function paintMode(){
   $('#botHint').textContent = vdice
     ? 'Tap the 🤖 next to a name to hand that seat to the app, then pick how it plays.'
     : 'Rollerbots roll the app\u2019s dice, so they sit this one out \u2014 switch to IN THE APP up top to play one.';
+  paintSpeed();          // moving the dice to the table empties every robot seat, and this with it
 }
 function setMode(on){
   if(on === vdice) return;                 // tapping the one you're already on is a no-op
@@ -2504,8 +2570,8 @@ function nextPlayer(){
   if(G.lastCaller !== null && G.cur === G.lastCaller){ endGame(); return; }
   render(); save();
   $('#pad').scrollTop = 0;   // the big 1 and 5 buttons greet the next player
-  setTimeout(()=> { if(G && !G.over) S.turn(); }, 750);
-  setTimeout(maybeOfferRide, 900);   // after the previous player's banking noise has landed
+  setTimeout(()=> { if(G && !G.over) S.turn(); }, bpause(750));
+  setTimeout(maybeOfferRide, bpause(900));   // after the previous player's banking noise has landed
   botKick(900);
 }
 function bump(node){ node.classList.remove('shake'); void node.offsetWidth; node.classList.add('shake'); }
@@ -2997,7 +3063,7 @@ function vRoll(){
     }
     V.tick = 0;
     V.raf = requestAnimationFrame(vStep);
-  }, easy ? 40 : 290);
+  }, easy ? 40 : bpause(290));
 }
 /* Dice are square, so a round hit test was wrong in the one place it shows: two dice
    meeting corner-first passed the distance check while their corners plainly overlapped.
@@ -3059,7 +3125,12 @@ function vSeparate(){
     }
   });
 }
-function vStep(){
+/* One frame of the tumble. Kept apart from the loop that drives it because a robot in a
+   hurry runs several of these between paints: the dice are the floor on how fast a turn can
+   go, and dividing the pauses either side of a throw that still takes a second and a half to
+   settle doesn't feel like much of a saving. Stepping the physics instead of skipping it
+   keeps every bounce and every clack — they just happen closer together. */
+function vAdvance(){
   const b = vBox(), h = vSize()*.5;
   let live = false;
   V.tick++;
@@ -3102,6 +3173,13 @@ function vStep(){
     }
   });
   vSeparate();
+  return live;
+}
+function vStep(){
+  let live = false;
+  // a person's throw is always one step a frame; only a robot's gets wound on
+  const reps = curBot() ? SPD().phys : 1;
+  for(let i=0;i<reps;i++){ live = vAdvance(); if(!live || V.tick >= 260) break; }
   vPaint();
   if(live && V.tick < 260){ V.raf = requestAnimationFrame(vStep); return; }
   V.raf = 0;
@@ -3132,7 +3210,7 @@ function vSettled(){
       // up to three seconds of looking at a farkle, and the turn can end under it
       if(!vOn()){ vGiveUp('turn moved on mid-farkle'); return; }
       vFarkle();
-    }, (curBot() ? 260 : 500) * vals.length);
+    }, (curBot() ? bwait(260) : 500) * vals.length);
     return;
   }
   if(best.pts >= 1000) sparkle(.12);
@@ -3156,7 +3234,7 @@ function vFarkle(){
     if(gen !== V.gen) return;                     // they undid the throw while it sat there
     V.lock = false;
     if(G && !G.over) doFarkle();
-  }, 1400);
+  }, bpause(1400));
 }
 /* set the chosen dice aside: they lift off the felt and land in the tally above */
 function vCommit(){
@@ -3470,19 +3548,28 @@ function botDecide(b, n, pot){
   const me = G.players[G.cur], t = total(me);
   if(shortOfBoard(pot)) return true;                                  // not on the board yet
   // Nobody can ride until every player is on the board, so while anybody is still short of it
-  // there is no such thing as leaving too much behind — the dice go back in the cup either way.
-  // Nothing to protect and no reason to risk it: take the points. Only a handful worth throwing
-  // keeps a bot on its feet, and a clean sweep always does.
-  if(G.minOnBoard && !everyoneOnBoard()) return n >= b.onBoard;
+  // there is nothing to be gained by handing the dice on: a handful this big goes back in the
+  // cup regardless, so throw it. This used to be the whole decision — bank unless you hold at
+  // least this many — which had the 🤖 setting down fifty points with five dice in its hand,
+  // a throw it survives 92% of the time and the sheet prices at seven times the pot. It's a
+  // floor on the bot's nerve now, not a ceiling: below it the sheet gets its say as usual, and
+  // the giveaway arithmetic further down already knows there is nobody to give anything to.
+  if(G.minOnBoard && !everyoneOnBoard() && n >= b.onBoard) return true;
   let roll;
   if(G.lastCaller !== null && G.cur !== G.lastCaller)                 // last lap: second place is last place
     roll = t + pot <= total(G.players[G.lastCaller]);
   else if(G.lastCaller === null && t + pot >= G.target) roll = false; // over the line — take it
   else if(b.greedy) roll = pot < 300 || n >= 4;
-  // the 😈 on a pot too small to bother with: a coin toss to roll, and another on whatever
-  // that leaves, chasing the clean sweep back to a fresh six. It replaces the sheet rather than
-  // adding to it — the sheet would throw every one of these, and the point is that it dithers.
-  else if(b.push && n <= b.push && pot < b.pushUnder) roll = Math.random() < b.pushOdds;
+  // the 😈 on a pot too small to bother with: chasing the clean sweep back to a fresh six on
+  // a coin toss. Written to replace the sheet, on the reasoning that the sheet would throw
+  // every one of these and the point is that it dithers — but replacing it cut both ways, and
+  // what it mostly did was talk a bot whose whole billing is "rolls on two" into banking two
+  // hundred on two dice, half the time, when its own sheet made that throw worth 229. So the
+  // toss only ever adds a throw now. Under 400 the sheet already says roll and the 😈 rolls;
+  // in the stretch above that where it would sit down, it still fancies its chances half the
+  // time. Which is the dithering, only now it dithers towards the dice.
+  else if(b.push && n <= b.push && pot < b.pushUnder)
+    roll = botWantsRoll(n, pot, b) || Math.random() < b.pushOdds;
   else roll = botWantsRoll(n, pot, b);
   // Every one of those reasons to bank is about the pot, and none of them is about the dice
   // left sitting behind it. Nobody sets down a fortune with a full six for the next player to
@@ -3525,7 +3612,7 @@ function botWait(ms, fn){
   setTimeout(()=>{
     if(g !== BOT.gen || botHold || !curBot() || G.cur !== seat) return;
     fn();
-  }, ms);
+  }, bwait(ms));                              // every robot pause in the app comes through here
 }
 function botSay(html){ BOT.say = html; if(curBot()) vChrome(); }
 function botName(){ return esc(G.players[G.cur].name); }
