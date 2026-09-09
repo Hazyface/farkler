@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Farkler — © 2026 Aaron Tipton -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1679,7 +1680,7 @@ const bpause = ms => curBot() ? bwait(ms) : ms;
 // here, there being no build step for a single file to have, so .githooks/pre-commit writes
 // the line below every time index.html is committed. Don't edit it; it won't survive.
 const VERSION = '1.6.4';
-const BUILT   = '26:09:02-21:03:43';
+const BUILT   = '26:09:09-08:57:55';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
@@ -3865,6 +3866,7 @@ function refreshDiag(){
   $('#diag').innerHTML =
     `<div><b>Version</b> ${esc(VERSION)}</div>` +
     `<div><b>Built</b> ${esc(BUILT)}</div>` +
+    `<div>\u00a9 2026 Aaron Tipton</div>` +
     `<div><b>Address</b> ${esc(location.href)}</div>` +
     `<div><b>Launched</b> ${standalone ? 'from the Home Screen' : 'in the browser'}</div>` +
     `<div><b>Offline copy</b> ${sw}</div>` +

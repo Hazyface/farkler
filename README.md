@@ -281,3 +281,7 @@ machine that had the hook. `VERSION` is still moved by hand.
 
 Sound is synthesized with the Web Audio API — nothing is downloaded. It is not tasteful.
 There is a mute button.
+
+---
+
+© 2026 Aaron Tipton

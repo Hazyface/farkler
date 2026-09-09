@@ -1,3 +1,4 @@
+/* Farkler — © 2026 Aaron Tipton */
 /* Keeps Farkler playable when the server it came from isn't answering.
    Rule number one in here: every path must return a real Response. Handing respondWith()
    an undefined kills the navigation and paints a blank white page, which is exactly the
