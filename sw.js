@@ -3,8 +3,8 @@
    Rule number one in here: every path must return a real Response. Handing respondWith()
    an undefined kills the navigation and paints a blank white page, which is exactly the
    bug this file used to have. */
-const CACHE = 'farkler-v8';
-const FILES = ['index.html', 'icon-180.png'];
+const CACHE = 'farkler-v9';
+const FILES = ['index.html', 'icon-180.png', 'GochiHand.ttf'];
 const SLOW = 3500;                        // how long to wait for the network before giving up on it
 
 // a fetch that won't hang the launch on a bad connection

@@ -12,6 +12,8 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <title>Farkler — Farkle Scorekeeper</title>
 <style>
+  /* Android has none of the Apple/Windows fonts below, so ship one that looks the same everywhere */
+  @font-face{font-family:"Gochi Hand";src:url(GochiHand.ttf) format("truetype");font-display:swap}
   :root{
     --card:#1e2b26;
     --card-2:#27352f;
@@ -33,7 +35,7 @@
     --font:ui-rounded,"SF Pro Rounded","Avenir Next","Segoe UI Variable",system-ui,-apple-system,sans-serif;
     --display:"Futura","Avenir Next Condensed","Avenir Next",ui-rounded,system-ui,sans-serif;
     /* rough and chalky — for the loud moments only */
-    --distress:"Chalkduster","Trattatello","Herculanum","Impact","Futura",system-ui,sans-serif;
+    --distress:"Chalkduster","Trattatello","Herculanum","Gochi Hand","Impact","Futura",system-ui,sans-serif;
   }
   /* touch-action:manipulation kills Safari's double-tap-to-zoom while leaving pinch-zoom and scrolling alone,
      so hammering the same scoring button twice never zooms the page */
@@ -449,7 +451,7 @@
        box-shadow:0 5px 0 var(--drop);transition:transform .06s,box-shadow .06s}
   .act:active{transform:translateY(4px);box-shadow:0 1px 0 var(--drop)}
   .act.farkle{background:linear-gradient(#ff6257,#a32320);font-family:var(--distress);letter-spacing:0;
-              font-size:clamp(17px,4.6vw,22px)}
+              font-size:clamp(21px,5.8vw,28px)}
   .act.bank{background:linear-gradient(#4ee08d,#159154);color:#082214}
   .act.bank small{display:block;font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:0;opacity:.75}
   /* the game-flow graph: only worth the room once the game is finished */
@@ -1680,7 +1682,7 @@ const bpause = ms => curBot() ? bwait(ms) : ms;
 // here, there being no build step for a single file to have, so .githooks/pre-commit writes
 // the line below every time index.html is committed. Don't edit it; it won't survive.
 const VERSION = '1.6.4';
-const BUILT   = '26:09:09-08:57:55';
+const BUILT   = '26:09:29-11:04:15';
 
 let G = null;          // live game
 let lineup = [];       // players in the next game: {name, emoji, color}
